@@ -4,3 +4,10 @@
  (libraries bhttp crowbar)
  (enabled_if
   (= %{profile} fuzz)))
+
+(executable
+ (name fuzz_ohttp)
+ (modules fuzz_ohttp)
+ (libraries ohttp bhttp hpke mirage-crypto-rng crowbar)
+ (enabled_if
+  (= %{profile} fuzz)))

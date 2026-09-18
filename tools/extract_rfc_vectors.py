@@ -9,12 +9,17 @@ corpus it cannot account for.
     curl -O https://www.rfc-editor.org/rfc/rfc9292.txt
     python3 tools/extract_rfc_vectors.py rfc9292 rfc9292.txt \\
         test/vectors/rfc9292.json
+
+    curl -O https://www.rfc-editor.org/rfc/rfc9458.txt
+    python3 tools/extract_rfc_vectors.py rfc9458 rfc9458.txt \\
+        test/vectors/rfc9458.json
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import hmac
 import json
 import re
 from pathlib import Path
@@ -93,10 +98,123 @@ def extract_rfc9292(text: str) -> list[dict[str, Any]]:
     return vectors
 
 
+RFC9458_URL = "https://www.rfc-editor.org/rfc/rfc9458.txt"
+RFC9458_SHA256 = "55f13cb7b3501e29f9edbbbbd9c8a3e13b84799d609d0e01443f543effa99350"
+
+# The values of Appendix A in the order they appear, with their lengths.
+RFC9458_VALUES = (
+    ("skR", 32),
+    ("key_config", 45),
+    ("request", 25),
+    ("skE", 32),
+    ("pkE", 32),
+    ("info", 29),
+    ("encapsulated_request", 80),
+    ("response", 3),
+    ("secret", 16),
+    ("salt", 48),
+    ("prk", 32),
+    ("aead_key", 16),
+    ("aead_nonce", 12),
+    ("encapsulated_response", 35),
+)
+
+
+def hex_paragraphs(lines: list[str]) -> list[bytes]:
+    """Paragraphs that consist of nothing but indented hexadecimal digits."""
+    paragraphs: list[bytes] = []
+    current: list[str] | None = None
+    for line in lines + [""]:
+        if re.fullmatch(r" {3}[0-9a-f]+", line):
+            current = (current or []) + [line.strip()]
+        else:
+            if current is not None and not line.strip():
+                paragraphs.append(bytes.fromhex("".join(current)))
+            current = None
+    return paragraphs
+
+
+def hkdf_expand_sha256(prk: bytes, info: bytes, length: int) -> bytes:
+    """RFC 5869 HKDF-Expand for outputs of at most one hash length."""
+    assert length <= 32
+    return hmac.new(prk, info + b"\x01", hashlib.sha256).digest()[:length]
+
+
+def extract_rfc9458(text: str) -> list[dict[str, Any]]:
+    lines = text.splitlines()
+    starts = [
+        index
+        for index, line in enumerate(lines)
+        if line.startswith("Appendix A.  Complete Example")
+    ]
+    ends = [index for index, line in enumerate(lines) if line == "Acknowledgments"]
+    if not starts or not ends:
+        fail("cannot find Appendix A")
+    paragraphs = hex_paragraphs(lines[starts[-1] : ends[-1]])
+    if len(paragraphs) != len(RFC9458_VALUES):
+        fail(f"expected {len(RFC9458_VALUES)} values, found {len(paragraphs)}")
+    values: dict[str, bytes] = {}
+    for (name, length), value in zip(RFC9458_VALUES, paragraphs):
+        if len(value) != length:
+            fail(f"{name}: expected {length} bytes, found {len(value)}")
+        values[name] = value
+
+    # The appendix does not print the response nonce on its own: it is the end
+    # of the salt, and the start of the Encapsulated Response.
+    request, salt = values["encapsulated_request"], values["salt"]
+    response_nonce = salt[32:]
+    header = request[:7]
+    checks = {
+        "the info ends with the request header": values["info"][-7:] == header,
+        "the info starts with the request label": values["info"][:-7]
+        == b"message/bhttp request\x00",
+        "the request carries pkE": request[7:39] == values["pkE"],
+        "the key configuration has the key identifier of the header": values[
+            "key_config"
+        ][:3]
+        == header[:3],
+        "the salt starts with pkE": salt[:32] == values["pkE"],
+        "the response starts with the response nonce": values[
+            "encapsulated_response"
+        ][:16]
+        == response_nonce,
+        # Section 4.4: Extract and Expand are plain HKDF, without HPKE labels.
+        "prk = Extract(salt, secret)": hmac.new(
+            salt, values["secret"], hashlib.sha256
+        ).digest()
+        == values["prk"],
+        'aead_key = Expand(prk, "key", Nk)': hkdf_expand_sha256(
+            values["prk"], b"key", 16
+        )
+        == values["aead_key"],
+        'aead_nonce = Expand(prk, "nonce", Nn)': hkdf_expand_sha256(
+            values["prk"], b"nonce", 12
+        )
+        == values["aead_nonce"],
+    }
+    for description, holds in checks.items():
+        if not holds:
+            fail(f"Appendix A is inconsistent: {description}")
+
+    vector: dict[str, Any] = {
+        "name": "appendix A",
+        "key_id": header[0],
+        "kem_id": int.from_bytes(header[1:3], "big"),
+        "kdf_id": int.from_bytes(header[3:5], "big"),
+        "aead_id": int.from_bytes(header[5:7], "big"),
+    }
+    for name, _ in RFC9458_VALUES:
+        vector[name] = values[name].hex()
+        if name == "secret":
+            vector["response_nonce"] = response_nonce.hex()
+    return [vector]
+
+
 Extractor = Callable[[str], list[dict[str, Any]]]
 
 SOURCES: dict[str, tuple[str, str, Extractor]] = {
     "rfc9292": (RFC9292_URL, RFC9292_SHA256, extract_rfc9292),
+    "rfc9458": (RFC9458_URL, RFC9458_SHA256, extract_rfc9458),
 }
 
 

@@ -1,4 +1,14 @@
 (test
  (name test_ohttp)
  (package ohttp)
- (libraries ohttp alcotest))
+ (libraries
+  ohttp
+  bhttp
+  hpke
+  hpke.for_testing
+  mirage-crypto-rng
+  alcotest
+  qcheck-core
+  qcheck-alcotest
+  yojson)
+ (deps ../vectors/rfc9458.json ../vectors/ohttp-go-vectors.json))

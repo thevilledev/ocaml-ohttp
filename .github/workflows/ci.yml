@@ -76,5 +76,6 @@ jobs:
           dune-cache: true
       - run: opam pin add hpke.0.2.0 git+https://github.com/thevilledev/ocaml-hpke.git#main --no-action
       - run: opam install . --deps-only --with-test
-      - run: opam exec -- dune build --profile fuzz fuzz/fuzz_bhttp.exe
+      - run: opam exec -- dune build --profile fuzz fuzz/fuzz_bhttp.exe fuzz/fuzz_ohttp.exe
       - run: opam exec -- _build/default/fuzz/fuzz_bhttp.exe --repeat 2000 --seed 9292
+      - run: opam exec -- _build/default/fuzz/fuzz_ohttp.exe --repeat 2000 --seed 9458
