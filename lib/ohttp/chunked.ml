@@ -228,6 +228,19 @@ let response_keys (suite : Suite.t) ~enc ~secret ~response_nonce =
   let* key = hpke_error (Hpke.Aead.key suite.aead key) in
   Ok (Aead { key; nonce; counter = 0 })
 
+let response_receiver ?(max_chunk_size = max_chunk_size) (suite : Suite.t) ~enc
+    ~secret =
+  let nonce_length = Suite.response_nonce_length suite.aead in
+  Receiver.create ~limit:max_chunk_size
+    (Receiver.Preamble
+       {
+         what = "response nonce";
+         length = (fun _ -> Ok (Some nonce_length));
+         start =
+           (fun response_nonce ->
+             response_keys suite ~enc ~secret ~response_nonce);
+       })
+
 module Client = struct
   type response_context = { suite : Suite.t; enc : string; secret : string }
 
@@ -255,17 +268,8 @@ module Client = struct
 
   let request ~rng = request_with ~setup:(Hpke.Rfc9180.setup_base_sender ~rng)
 
-  let response ?(max_chunk_size = max_chunk_size) { suite; enc; secret } =
-    let nonce_length = Suite.response_nonce_length suite.aead in
-    Receiver.create ~limit:max_chunk_size
-      (Receiver.Preamble
-         {
-           what = "response nonce";
-           length = (fun _ -> Ok (Some nonce_length));
-           start =
-             (fun response_nonce ->
-               response_keys suite ~enc ~secret ~response_nonce);
-         })
+  let response ?max_chunk_size { suite; enc; secret } =
+    response_receiver ?max_chunk_size suite ~enc ~secret
 end
 
 module Gateway = struct

@@ -1,0 +1,18 @@
+; Differential testing against other implementations; see README.md and
+; run.sh. Not part of any package, and not run by `dune runtest`: what it
+; records is, by test/bhttp and test/ohttp.
+
+(executable
+ (name differential)
+ (libraries
+  bhttp
+  ohttp
+  bhttp_test_support
+  ohttp_test_support
+  hpke
+  mirage-crypto-rng
+  digestif
+  yojson
+  unix))
+
+(data_only_dirs go rust)

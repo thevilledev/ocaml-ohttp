@@ -7,5 +7,6 @@ let () =
       ("encapsulation", Test_encapsulation.tests);
       ("chunked", Test_chunked.tests);
       ("upstream vectors", Test_upstream_vectors.tests);
+      ("differential", Test_differential.tests);
       ("properties", Test_properties.tests);
     ]

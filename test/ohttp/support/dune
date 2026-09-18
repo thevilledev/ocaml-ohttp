@@ -1,0 +1,5 @@
+; Shared by the ohttp tests and by tools/differential. Not installed.
+
+(library
+ (name ohttp_test_support)
+ (libraries ohttp hpke mirage-crypto-rng))

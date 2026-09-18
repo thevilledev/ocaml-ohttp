@@ -1,0 +1,17 @@
+[package]
+name = "peer"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# The implementation under comparison is pinned exactly; Cargo.lock pins
+# everything beneath it.
+[dependencies]
+bhttp = "=0.8.0"
+ohttp = "=0.8.0"
+futures = "0.3"
+hex = "0.4"
+serde_json = "1"
+
+[profile.release]
+debug = false

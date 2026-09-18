@@ -1,7 +1,7 @@
 (* The encoder's options, and its refusal to emit what a decoder rejects. *)
 
 open Bhttp
-open Build
+open Bhttp_test_support.Build
 
 let headers = [ ("a", "1") ]
 let trailers = [ ("t", "3") ]

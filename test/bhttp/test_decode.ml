@@ -3,7 +3,7 @@
    library's own encoder never produces. *)
 
 open Bhttp
-open Build
+open Bhttp_test_support.Build
 
 let request_result = Alcotest.(result Vectors.request Vectors.error)
 let response_result = Alcotest.(result Vectors.response Vectors.error)

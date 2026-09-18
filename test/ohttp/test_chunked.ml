@@ -96,7 +96,7 @@ let test_gateway () =
   let nonce, sender =
     ok
       (Chunked.Gateway.response
-         ~rng:(Fixed_rng.of_string (value "response_nonce"))
+         ~rng:(Ohttp_test_support.Fixed_rng.of_string (value "response_nonce"))
          request)
   in
   let expected = values "encapsulated_response" in

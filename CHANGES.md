@@ -8,6 +8,9 @@
   `hpke` package. A gateway accepts only what its keys advertise, and reports
   everything that a peer can cause as one error. The example of RFC 9458
   Appendix A is reproduced byte for byte in both directions.
+- Validate both packages against chris-wood/ohttp-go and martinthomson/ohttp
+  with a differential harness, in both roles and for every suite in common, and
+  replay what they produced in the test suites.
 - Add `Ohttp.Chunked`, an experimental implementation of chunked Oblivious HTTP
   (draft-ietf-ohai-chunked-ohttp-08): incremental senders and receivers for
   requests and responses, which take a stream in whatever slices a transport

@@ -52,7 +52,7 @@ let test_non_minimal () =
             Alcotest.(check (result (pair int int) Vectors.error))
               (Printf.sprintf "%d on %d bytes" n size)
               (Ok (n, size))
-              (decode (Build.sized ~size n)))
+              (decode (Bhttp_test_support.Build.sized ~size n)))
         [ 1; 2; 4; 8 ])
     boundaries
 
@@ -88,12 +88,14 @@ let test_invalid_arguments () =
   in
   raises "negative" (fun () -> Varint.encode (-1));
   raises "negative size" (fun () -> Varint.size (-1));
-  raises "bad width" (fun () -> Build.sized ~size:3 1);
-  raises "does not fit one byte" (fun () -> Build.sized ~size:1 64);
-  raises "does not fit two bytes" (fun () -> Build.sized ~size:2 16_384);
+  raises "bad width" (fun () -> Bhttp_test_support.Build.sized ~size:3 1);
+  raises "does not fit one byte" (fun () ->
+      Bhttp_test_support.Build.sized ~size:1 64);
+  raises "does not fit two bytes" (fun () ->
+      Bhttp_test_support.Build.sized ~size:2 16_384);
   if wide then
     raises "does not fit four bytes" (fun () ->
-        Build.sized ~size:4 (0x3fff_ffff + 1))
+        Bhttp_test_support.Build.sized ~size:4 (0x3fff_ffff + 1))
 
 let tests =
   [

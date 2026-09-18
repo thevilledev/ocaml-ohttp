@@ -3,6 +3,7 @@
  (package ohttp)
  (libraries
   ohttp
+  ohttp_test_support
   bhttp
   hpke
   hpke.for_testing
@@ -14,4 +15,6 @@
  (deps
   ../vectors/rfc9458.json
   ../vectors/chunked-ohttp-08.json
-  ../vectors/ohttp-go-vectors.json))
+  ../vectors/ohttp-go-vectors.json
+  ../vectors/differential/ohttp-go.json
+  ../vectors/differential/ohttp-rust.json))

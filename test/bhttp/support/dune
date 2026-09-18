@@ -1,0 +1,5 @@
+; Shared by the bhttp tests and by tools/differential. Not installed.
+
+(library
+ (name bhttp_test_support)
+ (libraries bhttp yojson))

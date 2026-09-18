@@ -123,6 +123,16 @@ module Gateway : sig
       returns {!Error.Truncated_message}. It may be called once. *)
 end
 
+(** {1 Building blocks} *)
+
+val response_receiver :
+  ?max_chunk_size:int -> Suite.t -> enc:string -> secret:string -> Receiver.t
+(** The receiver for a response, from the encapsulated key of its request and
+    the secret that the HPKE context exports for the response label. Like the
+    functions of {!Encapsulation}, it takes the secret as an argument, so that a
+    recorded exchange can be opened from the gateway's side of the context.
+    Applications should use {!Client.response}. *)
+
 (** {1 Whole messages} *)
 
 val seal_all : ?chunk_size:int -> Sender.t -> string -> (string, Error.t) result

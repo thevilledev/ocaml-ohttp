@@ -34,7 +34,8 @@ let test_vector vector =
       check_bytes "response"
         (hex_field transaction "response")
         (ok
-           (Replay.open_response ~private_key ~encapsulated_request
+           (Ohttp_test_support.Replay.open_response ~private_key
+              ~encapsulated_request
               (hex_field transaction "encapsulatedResponse"))))
 
 let tests =

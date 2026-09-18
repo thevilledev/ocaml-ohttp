@@ -81,7 +81,7 @@ let test_gateway () =
     (value "encapsulated_response")
     (ok
        (Gateway.encapsulate
-          ~rng:(Fixed_rng.of_string (value "response_nonce"))
+          ~rng:(Ohttp_test_support.Fixed_rng.of_string (value "response_nonce"))
           context (value "response")))
 
 let test_intermediate_values () =

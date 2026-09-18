@@ -11,8 +11,9 @@ open Ohttp
 let ( let* ) = Result.bind
 let hpke_error = function Ok v -> Ok v | Error e -> Error (Error.Hpke e)
 
-let open_response ?(labels = Encapsulation.bhttp_labels) ~private_key
-    ~encapsulated_request encapsulated_response =
+(* The suite, the encapsulated key, and the exported secret of a recorded
+   request. *)
+let secret ~(labels : Encapsulation.labels) ~private_key encapsulated_request =
   let* _, kem_id, kdf_id, aead_id =
     Encapsulation.parse_header encapsulated_request
   in
@@ -41,4 +42,20 @@ let open_response ?(labels = Encapsulation.bhttp_labels) ~private_key
       (Hpke.Rfc9180.Receiver.export receiver ~context:labels.response
          ~length:(Suite.response_nonce_length suite.aead))
   in
+  Ok (suite, enc, secret)
+
+let open_response ?(labels = Encapsulation.bhttp_labels) ~private_key
+    ~encapsulated_request encapsulated_response =
+  let* suite, enc, secret = secret ~labels ~private_key encapsulated_request in
   Encapsulation.open_response suite ~enc ~secret encapsulated_response
+
+(* The chunks of a recorded chunked response, the final one last. *)
+let open_chunked_response ~private_key ~encapsulated_request
+    encapsulated_response =
+  let* suite, enc, secret =
+    secret ~labels:Chunked.labels ~private_key encapsulated_request
+  in
+  let receiver = Chunked.response_receiver suite ~enc ~secret in
+  let* chunks = Chunked.Receiver.feed receiver encapsulated_response in
+  let* final = Chunked.Receiver.finish receiver in
+  Ok (chunks @ [ final ])

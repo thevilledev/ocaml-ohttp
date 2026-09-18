@@ -16,6 +16,7 @@ the RFC itself states.
 | `rfc9292.json` | RFC 9292, Copyright (c) 2022 IETF Trust and the persons identified as the document authors | IETF Trust Legal Provisions (BCP 78) |
 | `rfc9458.json` | RFC 9458, Copyright (c) 2024 IETF Trust and the persons identified as the document authors | IETF Trust Legal Provisions (BCP 78) |
 | `chunked-ohttp-08.json` | draft-ietf-ohai-chunked-ohttp-08, Copyright (c) 2026 IETF Trust and the persons identified as the document authors | IETF Trust Legal Provisions (BCP 78) |
+| `differential/` | Generated for this project by `tools/differential` | ISC, as the rest of the project |
 | `ohttp-go-vectors.json` | Generated for this project with [chris-wood/ohttp-go](https://github.com/chris-wood/ohttp-go) | ISC, as the rest of the project |
 
 RFC 9292, RFC 9458, and the chunked OHTTP draft are IETF-stream documents. The
@@ -135,3 +136,39 @@ the recorded bytes are the known answers: the seed must derive the recorded key
 configuration, the recorded Encapsulated Request must open to the request, and
 the recorded Encapsulated Response must open under the secret that the
 gateway's side of the same HPKE context exports.
+
+## Differential corpus
+
+`differential/ohttp-go.json`, `differential/bhttp-go.json`,
+`differential/ohttp-rust.json`, and `differential/bhttp-rust.json` record what
+two other implementations produced when `tools/differential` ran against them:
+
+| Peer | Implementation | Version |
+| --- | --- | --- |
+| `go` | [chris-wood/ohttp-go](https://github.com/chris-wood/ohttp-go) | `v0.0.0-20260205154755-776f22a178b8`, pinned in `tools/differential/go/go.mod` and `go.sum` |
+| `rust` | [martinthomson/ohttp](https://github.com/martinthomson/ohttp) | the `ohttp` and `bhttp` crates at `0.8.0`, pinned with everything beneath them in `tools/differential/rust/Cargo.lock` |
+
+```sh
+tools/differential/run.sh --count 16 --seed 9458 \
+  --output-dir test/vectors/differential
+```
+
+Each file names its peer, its version, the seed and count of the run, and the
+toolchains, under `source`. The cases are drawn from an HMAC-DRBG and are the
+same on every run; what the peers seal uses their own randomness, so a new run
+gives other bytes, and the recorded files are the fixtures. A run that records
+fails unless both peers are there and nothing differs unexpectedly.
+
+The `ohttp` files hold key configurations that the peer derived from a seed,
+and exchanges of which the peer sealed one side: the request when it was the
+client, the response when it was the gateway. They cover every suite that the
+peer shares with this library, which is all 36 for Go, and X25519 and P-256
+with HKDF-SHA256 and AES-128-GCM or ChaCha20Poly1305 for Rust, and chunked
+exchanges for Rust. The tests derive the same configuration from the seed,
+open the request as the gateway, and open the response under the secret that
+the rebuilt gateway context exports, so a recorded response is a known answer
+whoever sealed the request. The `bhttp` files hold messages that the peer
+encoded, which must decode to what was asked for.
+
+Where a peer departs from an RFC, `tools/differential/differential.ml` has a
+rule with the reason, and `doc/interoperability.md` lists them.

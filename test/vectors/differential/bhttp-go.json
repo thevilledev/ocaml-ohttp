@@ -1,0 +1,426 @@
+{
+  "source": {
+    "peer": "go",
+    "version": "v0.0.0-20260205154755-776f22a178b8",
+    "seed": 9458,
+    "count": 16,
+    "ocaml": "5.4.1",
+    "go": "go1.27.1",
+    "rust-image": "sha256:f5f2b4a56359469e435d81cc81f747dc982d6d0cee045d56baeb02b2a57264f6"
+  },
+  "messages": [
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "0004504f53540568747470730c66717a6c2e6578616d706c65132f2d3069742d38302f632f6163753461697765404007782d786a632d300c4f426c3d57536e71315444280c782d70696f766364616e2d310a66274a335f3e6e34704a05782d632d320c516a2e332e6745396f6c62580000",
+      "decoded": {
+        "kind": "request",
+        "method": "504f5354",
+        "scheme": "6874747073",
+        "authority": "66717a6c2e6578616d706c65",
+        "path": "2f2d3069742d38302f632f6163753461697765",
+        "headers": [
+          [ "782d786a632d30", "4f426c3d57536e7131544428" ],
+          [ "782d70696f766364616e2d31", "66274a335f3e6e34704a" ],
+          [ "782d632d32", "516a2e332e6745396f6c6258" ]
+        ],
+        "content": "",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "0140c92907782d6364762d30054272734d3d07782d7573752d3112786f4d7a323d736c776a5947646e7557433d014200",
+      "decoded": {
+        "kind": "response",
+        "informational": [],
+        "status": 201,
+        "headers": [
+          [ "782d6364762d30", "4272734d3d" ],
+          [ "782d7573752d31", "786f4d7a323d736c776a5947646e7557433d" ]
+        ],
+        "content": "42",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "00035055540568747470730b7a682d2e6578616d706c65022f6b1108782d616874622d3007627954555120690000",
+      "decoded": {
+        "kind": "request",
+        "method": "505554",
+        "scheme": "6874747073",
+        "authority": "7a682d2e6578616d706c65",
+        "path": "2f6b",
+        "headers": [ [ "782d616874622d30", "62795455512069" ] ],
+        "content": "",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "0003474554046874747009642e6578616d706c65012f170c782d706161666268786f2d30094a29795a2220566d51017900",
+      "decoded": {
+        "kind": "request",
+        "method": "474554",
+        "scheme": "68747470",
+        "authority": "642e6578616d706c65",
+        "path": "2f",
+        "headers": [ [ "782d706161666268786f2d30", "4a29795a2220566d51" ] ],
+        "content": "79",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "01412d40520a782d6b72726e6a742d3116726231364f39696d67697151714f6b6665747253635507782d766a6d2d321463767828693c4e66512844494e36436e753b465a0a782d636d757374712d300741683235354a6811a3ec6d74a5eaae4867357785f178d2b9a900",
+      "decoded": {
+        "kind": "response",
+        "informational": [],
+        "status": 301,
+        "headers": [
+          [
+            "782d6b72726e6a742d31",
+            "726231364f39696d67697151714f6b66657472536355"
+          ],
+          [ "782d766a6d2d32", "63767828693c4e66512844494e36436e753b465a" ],
+          [ "782d636d757374712d30", "41683235354a68" ]
+        ],
+        "content": "a3ec6d74a5eaae4867357785f178d2b9a9",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "01412d404506782d746d2d320b74343a7a74537a533b577108782d6873646c2d300e683120735a664155295766455f3609782d64716b79722d310f4d71727673482c3a6c3a63434c57611131eab648fa296c9415fe538ba07f89ca9d00",
+      "decoded": {
+        "kind": "response",
+        "informational": [],
+        "status": 301,
+        "headers": [
+          [ "782d746d2d32", "74343a7a74537a533b5771" ],
+          [ "782d6873646c2d30", "683120735a664155295766455f36" ],
+          [ "782d64716b79722d31", "4d71727673482c3a6c3a63434c5761" ]
+        ],
+        "content": "31eab648fa296c9415fe538ba07f89ca9d",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "00034745540568747470730a326d2e6578616d706c65082f34346773746836180a782d797679716b672d300c4e566a646347524c5a6b77560000",
+      "decoded": {
+        "kind": "request",
+        "method": "474554",
+        "scheme": "6874747073",
+        "authority": "326d2e6578616d706c65",
+        "path": "2f34346773746836",
+        "headers": [ [ "782d797679716b672d30", "4e566a646347524c5a6b7756" ] ],
+        "content": "",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "0004504f535404687474700a68392e6578616d706c650d2f30766632372f7e3176702e63404406782d6a672d300a627559554f38363a425a07782d7672632d310e333a343e3549273c55585042384406782d62752d3213596a526e6c502e2e412f7171557820365772490000",
+      "decoded": {
+        "kind": "request",
+        "method": "504f5354",
+        "scheme": "68747470",
+        "authority": "68392e6578616d706c65",
+        "path": "2f30766632372f7e3176702e63",
+        "headers": [
+          [ "782d6a672d30", "627559554f38363a425a" ],
+          [ "782d7672632d31", "333a343e3549273c555850423844" ],
+          [ "782d62752d32", "596a526e6c502e2e412f717155782036577249" ]
+        ],
+        "content": "",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "0140c9000000",
+      "decoded": {
+        "kind": "response",
+        "informational": [],
+        "status": 201,
+        "headers": [],
+        "content": "",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "0141f4404a06782d70622d300d56623e64375f465722227266330b782d6c656b6a6c79762d310545637556590b782d796c6b6f7a72742d3201590b782d686568676a6e692d330836734864225964640000",
+      "decoded": {
+        "kind": "response",
+        "informational": [],
+        "status": 500,
+        "headers": [
+          [ "782d70622d30", "56623e64375f46572222726633" ],
+          [ "782d6c656b6a6c79762d31", "4563755659" ],
+          [ "782d796c6b6f7a72742d32", "59" ],
+          [ "782d686568676a6e692d33", "3673486422596464" ]
+        ],
+        "content": "",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "0141f40f06782d68772d3007726d7727286278017f00",
+      "decoded": {
+        "kind": "response",
+        "informational": [],
+        "status": 500,
+        "headers": [ [ "782d68772d30", "726d7727286278" ] ],
+        "content": "7f",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "014257404708782d666b756c2d33105f71503b54497678503c413e797a706907782d6d63622d300f74503448346558766d704d4141613d07782d7577722d31034e517a07782d7061782d32000000",
+      "decoded": {
+        "kind": "response",
+        "informational": [],
+        "status": 599,
+        "headers": [
+          [ "782d666b756c2d33", "5f71503b54497678503c413e797a7069" ],
+          [ "782d6d63622d30", "74503448346558766d704d4141613d" ],
+          [ "782d7577722d31", "4e517a" ],
+          [ "782d7061782d32", "" ]
+        ],
+        "content": "",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "014194404b06782d73612d3017312f413a533e2e557852766275366a2f27335a48706d3a0a782d7a63697875702d310a4758726c503d3472316606782d70622d32000c782d6c6a6462616267732d3300110ab44adb3e6a8e2b5ad7613e4e3999691500",
+      "decoded": {
+        "kind": "response",
+        "informational": [],
+        "status": 404,
+        "headers": [
+          [
+            "782d73612d30", "312f413a533e2e557852766275366a2f27335a48706d3a"
+          ],
+          [ "782d7a63697875702d31", "4758726c503d34723166" ],
+          [ "782d70622d32", "" ],
+          [ "782d6c6a6462616267732d33", "" ]
+        ],
+        "content": "0ab44adb3e6a8e2b5ad7613e4e39996915",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "0140c81f09782d70636c6c772d30013005782d752d310c646d3b64686c6a6f47354f5711015cfb1a3d1915657429b9c032ca0f2fdb00",
+      "decoded": {
+        "kind": "response",
+        "informational": [],
+        "status": 200,
+        "headers": [
+          [ "782d70636c6c772d30", "30" ],
+          [ "782d752d31", "646d3b64686c6a6f47354f57" ]
+        ],
+        "content": "015cfb1a3d1915657429b9c032ca0f2fdb",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "000350555405687474707309642e6578616d706c65012f404806782d63662d3001340b782d787674796878782d310f6d5f55653d686c396f6857783a78370a782d6a6568746a622d32174756517448715f3d6f6b53347863374369202844365f780000",
+      "decoded": {
+        "kind": "request",
+        "method": "505554",
+        "scheme": "6874747073",
+        "authority": "642e6578616d706c65",
+        "path": "2f",
+        "headers": [
+          [ "782d63662d30", "34" ],
+          [ "782d787674796878782d31", "6d5f55653d686c396f6857783a7837" ],
+          [
+            "782d6a6568746a622d32",
+            "4756517448715f3d6f6b53347863374369202844365f78"
+          ]
+        ],
+        "content": "",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "0003505554056874747073096f2e6578616d706c65102f6f7639712f2e6e6a73672f68396d71405e0a782d75646e6f65662d300b2e52327250473928275f7309782d74636571612d31126350417a53573d5052595f4d525a7a6466520b782d6763626d6167632d32000a782d65696e6570672d33117a29754c4d61587141357666364a746b6e010e00",
+      "decoded": {
+        "kind": "request",
+        "method": "505554",
+        "scheme": "6874747073",
+        "authority": "6f2e6578616d706c65",
+        "path": "2f6f7639712f2e6e6a73672f68396d71",
+        "headers": [
+          [ "782d75646e6f65662d30", "2e52327250473928275f73" ],
+          [ "782d74636571612d31", "6350417a53573d5052595f4d525a7a646652" ],
+          [ "782d6763626d6167632d32", "" ],
+          [ "782d65696e6570672d33", "7a29754c4d61587141357666364a746b6e" ]
+        ],
+        "content": "0e",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "0140cc1209782d70786869732d3007706d7a72466337010500",
+      "decoded": {
+        "kind": "response",
+        "informational": [],
+        "status": 204,
+        "headers": [ [ "782d70786869732d30", "706d7a72466337" ] ],
+        "content": "05",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "0004504f53540568747470730a70632e6578616d706c650e2f366c395f2f67326c616a7970671a06782d746e2d30127372515a2e704442645a61542c457763765601f500",
+      "decoded": {
+        "kind": "request",
+        "method": "504f5354",
+        "scheme": "6874747073",
+        "authority": "70632e6578616d706c65",
+        "path": "2f366c395f2f67326c616a797067",
+        "headers": [
+          [ "782d746e2d30", "7372515a2e704442645a61542c4577637656" ]
+        ],
+        "content": "f5",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "0140c9150c782d6e64646c617377772d3007525243416a77310000",
+      "decoded": {
+        "kind": "response",
+        "informational": [],
+        "status": 201,
+        "headers": [ [ "782d6e64646c617377772d30", "525243416a7731" ] ],
+        "content": "",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "000644454c45544504687474700f746578347a655f2e6578616d706c65132f6775346a2f6b393272722f636b6b3633787a40510a782d78746c6a76662d331355726e2c574c3e78515738734e32422e63467405782d792d30102c31616a2768412d644d535139436f3905782d6e2d3105496d30493407782d7266612d32064a4a6d3b432911e9b01bd49b7e72910eaf9585e09531a00c00",
+      "decoded": {
+        "kind": "request",
+        "method": "44454c455445",
+        "scheme": "68747470",
+        "authority": "746578347a655f2e6578616d706c65",
+        "path": "2f6775346a2f6b393272722f636b6b3633787a",
+        "headers": [
+          [
+            "782d78746c6a76662d33", "55726e2c574c3e78515738734e32422e634674"
+          ],
+          [ "782d792d30", "2c31616a2768412d644d535139436f39" ],
+          [ "782d6e2d31", "496d304934" ],
+          [ "782d7266612d32", "4a4a6d3b4329" ]
+        ],
+        "content": "e9b01bd49b7e72910eaf9585e09531a00c",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "00035055540568747470730b5f77322e6578616d706c65072f707a33772f6c000000",
+      "decoded": {
+        "kind": "request",
+        "method": "505554",
+        "scheme": "6874747073",
+        "authority": "5f77322e6578616d706c65",
+        "path": "2f707a33772f6c",
+        "headers": [],
+        "content": "",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "0140c940590a782d687561696a792d301442345239476a4875327754416542614e783463690b782d6d787a69666f742d31144e4a6a476567692e352d6961474878413b456f3806782d6c672d321028356f763e4c443844305771576d732c115f47cc3726eb2343a40421b1987922c5cf00",
+      "decoded": {
+        "kind": "response",
+        "informational": [],
+        "status": 201,
+        "headers": [
+          [
+            "782d687561696a792d30",
+            "42345239476a4875327754416542614e78346369"
+          ],
+          [
+            "782d6d787a69666f742d31",
+            "4e4a6a476567692e352d6961474878413b456f38"
+          ],
+          [ "782d6c672d32", "28356f763e4c443844305771576d732c" ]
+        ],
+        "content": "5f47cc3726eb2343a40421b1987922c5cf",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "0004504f53540568747470730c397230622e6578616d706c650d2f31636c352f5f34685f736d37404705782d722d300a225431343174295f373506782d6b642d31104a4431296f36613739374d334d634d3709782d7a67746c612d3213417a36704f432245714e4a616a294650675f5f0000",
+      "decoded": {
+        "kind": "request",
+        "method": "504f5354",
+        "scheme": "6874747073",
+        "authority": "397230622e6578616d706c65",
+        "path": "2f31636c352f5f34685f736d37",
+        "headers": [
+          [ "782d722d30", "225431343174295f3735" ],
+          [ "782d6b642d31", "4a4431296f36613739374d334d634d37" ],
+          [ "782d7a67746c612d32", "417a36704f432245714e4a616a294650675f5f" ]
+        ],
+        "content": "",
+        "trailers": []
+      }
+    },
+    {
+      "category": "bhttp/peer-encode",
+      "encoded_by": "peer",
+      "message": "000350555404687474700f6e6b786e3634732e6578616d706c65052f667531690e0c782d68616372627279692d3000111c69ff37b86f3208cb3766f349cd3c854000",
+      "decoded": {
+        "kind": "request",
+        "method": "505554",
+        "scheme": "68747470",
+        "authority": "6e6b786e3634732e6578616d706c65",
+        "path": "2f66753169",
+        "headers": [ [ "782d68616372627279692d30", "" ] ],
+        "content": "1c69ff37b86f3208cb3766f349cd3c8540",
+        "trailers": []
+      }
+    }
+  ]
+}

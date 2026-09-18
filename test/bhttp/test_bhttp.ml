@@ -7,5 +7,6 @@ let () =
       ("decode", Test_decode.tests);
       ("encode", Test_encode.tests);
       ("field", Test_field.tests);
+      ("differential", Test_differential.tests);
       ("properties", Test_properties.tests);
     ]

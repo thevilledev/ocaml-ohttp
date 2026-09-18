@@ -95,7 +95,8 @@ let varint_round_trip =
       List.for_all
         (fun size ->
           size < Varint.size n
-          || Varint.decode (Build.sized ~size n) ~pos:0 = Ok (n, size))
+          || Varint.decode (Bhttp_test_support.Build.sized ~size n) ~pos:0
+             = Ok (n, size))
         [ 1; 2; 4; 8 ]
       && Varint.decode (Varint.encode n) ~pos:0 = Ok (n, Varint.size n))
 

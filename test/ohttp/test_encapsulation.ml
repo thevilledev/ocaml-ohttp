@@ -106,7 +106,10 @@ let test_response_nonce_draw () =
   let _, context = ok (Gateway.decapsulate gateway encapsulated) in
   let nonce = String.init 16 (fun i -> Char.chr (0xa0 + i)) in
   let response =
-    ok (Gateway.encapsulate ~rng:(Fixed_rng.of_string nonce) context "response")
+    ok
+      (Gateway.encapsulate
+         ~rng:(Ohttp_test_support.Fixed_rng.of_string nonce)
+         context "response")
   in
   check_bytes "the response starts with what was drawn" nonce
     (String.sub response 0 16);
@@ -114,7 +117,7 @@ let test_response_nonce_draw () =
     (Invalid_argument "fixed test RNG exhausted") (fun () ->
       ignore
         (Gateway.encapsulate
-           ~rng:(Fixed_rng.of_string (String.sub nonce 0 15))
+           ~rng:(Ohttp_test_support.Fixed_rng.of_string (String.sub nonce 0 15))
            context "response"))
 
 let test_gateway_keys () =
