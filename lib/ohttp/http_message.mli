@@ -1,6 +1,6 @@
-(** Exchanges of Binary HTTP messages: {!Client} and {!Gateway} with the
-    encoding and decoding of {!Bhttp} around them, and the rules that RFC 9458
-    adds for what is encapsulated. *)
+(** Exchanges of Binary HTTP messages: {!Ohttp.Client} and {!Ohttp.Gateway} with
+    the encoding and decoding of {!Bhttp} around them, and the rules that RFC
+    9458 adds for what is encapsulated. *)
 
 val encapsulate_request :
   rng:Mirage_crypto_rng.g ->

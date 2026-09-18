@@ -1,0 +1,19 @@
+(documentation
+ (package ohttp)
+ (mld_files index))
+
+(install
+ (section doc)
+ (package ohttp)
+ (files
+  (../getting-started.md as doc/getting-started.md)
+  (../protocol-support.md as doc/protocol-support.md)
+  (../http-libraries.md as doc/http-libraries.md)
+  (../interoperability.md as doc/interoperability.md)
+  (../development.md as doc/development.md)
+  (../releasing.md as doc/releasing.md)
+  (../../SECURITY.md as SECURITY.md)
+  (../../examples/basic.ml as examples/basic.ml)
+  (../../examples/cohttp_adapter.ml as examples/cohttp_adapter.ml)
+  (../../examples/services.ml as examples/services.ml)
+  (../../test/vectors/PROVENANCE.md as test/vectors/PROVENANCE.md)))

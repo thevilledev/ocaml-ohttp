@@ -1,0 +1,65 @@
+{0 ohttp}
+
+[ohttp] implements Oblivious HTTP
+({{:https://www.rfc-editor.org/rfc/rfc9458.html}RFC 9458}) in OCaml: a client
+encapsulates a request for a gateway and sends it through a relay, so that the
+relay learns who is asking and the gateway what is asked, and neither learns
+both. It builds on the [hpke] package for RFC 9180, and on [bhttp] for the
+messages that it carries.
+
+The library is unaudited and not production-ready. It is intended for
+interoperability review.
+
+{1 Application entry points}
+
+The library performs no I/O. An encapsulated message is a string that any HTTP
+library can post, and everything else is a function from strings to strings.
+
+A client reads the gateway's key configurations with
+{!Ohttp.Key_config.decode_list}, picks one with
+{!Ohttp.Key_config.select_from_list}, and encapsulates a request with
+{!Ohttp.Http_message.encapsulate_request}. It posts the result to the relay with
+{!Ohttp.Http_binding.Client.request_headers}, checks the answer with
+{!Ohttp.Http_binding.Client.check_response}, and opens it with
+{!Ohttp.Http_message.decapsulate_response}.
+
+A gateway holds {!Ohttp.Gateway.Key} values in a {!Ohttp.Gateway.t}, serves
+{!Ohttp.Gateway.encoded_key_configs}, and answers a request with
+{!Ohttp.Http_message.decapsulate_request},
+{!Ohttp.Http_message.encapsulate_response}, and, when the encapsulation cannot
+be removed, {!Ohttp.Http_binding.Gateway.val-error_response}.
+
+{!Ohttp.Client} and {!Ohttp.Gateway} do the same for byte strings that are not
+Binary HTTP. {!Ohttp.Chunked} is an experimental implementation of chunked
+Oblivious HTTP (draft-ietf-ohai-chunked-ohttp-08), and its interface may
+change.
+
+{1 Modules}
+
+{2 Application interface}
+
+{!modules: Ohttp.Key_config Ohttp.Http_message Ohttp.Http_binding Ohttp.Client
+Ohttp.Gateway Ohttp.Chunked Ohttp.Suite Ohttp.Media_type Ohttp.Error}
+
+{2 Protocol internals}
+
+{!modules: Ohttp.Encapsulation}
+
+{1 Guides}
+
+- {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/doc/getting-started.md}Getting started}: installation and the runnable example.
+- {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/doc/http-libraries.md}HTTP libraries}: carrying the messages with cohttp, or with anything else.
+- {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/doc/protocol-support.md}Protocol support}: features, algorithms, and known gaps.
+- {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/doc/interoperability.md}Interoperability}: how other implementations compare.
+- {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/doc/development.md}Development}: building, testing, and the module map.
+- {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/doc/releasing.md}Release checklist}: preparing and validating the opam packages.
+
+These guides are also installed as Markdown under the package's documentation
+directory.
+
+{1 Security}
+
+See the repository's
+{{:https://github.com/thevilledev/ocaml-ohttp/blob/main/SECURITY.md}security policy}
+for what the library checks, what it leaves to applications, its known
+limitations, and private vulnerability reporting.

@@ -1,0 +1,41 @@
+{0 bhttp}
+
+[bhttp] is a codec for the binary representation of HTTP messages
+({{:https://www.rfc-editor.org/rfc/rfc9292.html}RFC 9292}): requests and
+responses in both framings, with informational responses, trailers, padding,
+and truncation. It has no dependencies and performs no I/O.
+
+The library is unaudited and not production-ready. It is intended for
+interoperability review.
+
+{1 Entry points}
+
+A message is a record of strings and of pairs of strings, which the types of
+any HTTP library convert to and from in a few lines:
+
+{[
+  let request =
+    Bhttp.Request.make ~meth:"GET" ~authority:"example.com" ~path:"/" ()
+  in
+  match Bhttp.Request.encode request with
+  | Ok encoded -> Bhttp.Request.decode encoded = Ok request
+  | Error e -> failwith (Bhttp.Error.to_string e)
+]}
+
+{!Bhttp.Request} and {!Bhttp.Response} encode and decode one kind of message,
+and {!Bhttp.Message} either kind. Decoding accepts what RFC 9292 allows an
+encoder to vary (the size of an integer, missing empty sections at the end,
+zero padding) and rejects what it makes invalid; field names come back in
+lowercase. Encoding refuses what decoding would reject.
+
+{1 Modules}
+
+{!modules: Bhttp.Request Bhttp.Response Bhttp.Message Bhttp.Field
+Bhttp.Framing Bhttp.Varint Bhttp.Error Bhttp.Hex}
+
+{1 Guides}
+
+- {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/doc/getting-started.md}Getting started}
+- {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/doc/protocol-support.md}Protocol support}
+- {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/doc/http-libraries.md}HTTP libraries}
+- {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/doc/interoperability.md}Interoperability}

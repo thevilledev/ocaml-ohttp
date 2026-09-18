@@ -6,11 +6,11 @@
 
     A chunked message is sealed and opened piece by piece, so that a request or
     a response can be produced and consumed before all of it exists. The header
-    and the key schedule are those of {!Client} and {!Gateway} under other
-    labels; what follows the header is a sequence of chunks, each sealed on its
-    own and preceded by its length. The last chunk has a length of zero, runs to
-    the end of the stream, and is sealed with the additional data ["final"], so
-    that a message cut short cannot pass for a complete one.
+    and the key schedule are those of {!Ohttp.Client} and {!Ohttp.Gateway} under
+    other labels; what follows the header is a sequence of chunks, each sealed
+    on its own and preceded by its length. The last chunk has a length of zero,
+    runs to the end of the stream, and is sealed with the additional data
+    ["final"], so that a message cut short cannot pass for a complete one.
 
     Nothing here performs I/O. A {!Sender} turns pieces of a message into bytes
     to write, and a {!Receiver} turns bytes read, split in any way at all, into
