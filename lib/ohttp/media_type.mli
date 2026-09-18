@@ -7,6 +7,13 @@ val ohttp_request : string
 val ohttp_response : string
 (** ["message/ohttp-res"], an encapsulated response. *)
 
+val ohttp_chunked_request : string
+(** ["message/ohttp-chunked-req"], a chunked encapsulated request
+    (draft-ietf-ohai-chunked-ohttp). *)
+
+val ohttp_chunked_response : string
+(** ["message/ohttp-chunked-res"], a chunked encapsulated response. *)
+
 val ohttp_keys : string
 (** ["application/ohttp-keys"], a list of key configurations. *)
 

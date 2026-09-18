@@ -136,6 +136,100 @@ let configurations_are_total =
           (* Skipped configurations make the list shorter, never different. *)
           String.length (Key_config.encode_list configs) <= String.length input)
 
+(* Chunked messages. *)
+
+let pieces =
+  let open Gen in
+  let* non_final = list_size (int_range 0 6) (string_size (int_range 1 200)) in
+  let+ final = string_size (int_range 0 200) in
+  (non_final, final)
+
+(* Cut a stream into slices at generated points, as a transport might. *)
+let slices stream =
+  let open Gen in
+  let+ cuts = list_size (int_range 0 12) (int_bound (String.length stream)) in
+  let cuts = List.sort_uniq compare (0 :: String.length stream :: cuts) in
+  let rec go = function
+    | a :: (b :: _ as rest) -> String.sub stream a (b - a) :: go rest
+    | [ _ ] | [] -> []
+  in
+  go cuts
+
+let chunked_stream =
+  let open Gen in
+  let* non_final, final = pieces in
+  let config = Gateway.Key.config (List.hd (Lazy.force keys)) in
+  let header, sender, _ = ok (Chunked.Client.request ~rng config) in
+  (* In this order: the operands of [@] are evaluated right to left. *)
+  let chunks =
+    List.map (fun piece -> ok (Chunked.Sender.chunk sender piece)) non_final
+  in
+  let last = ok (Chunked.Sender.final sender final) in
+  let stream = header ^ String.concat "" chunks ^ last in
+  let+ slices = slices stream in
+  (non_final, final, stream, slices)
+
+let receive slices =
+  let receiver =
+    Chunked.Gateway.receiver (Chunked.Gateway.request (Lazy.force gateway))
+  in
+  let rec go acc = function
+    | [] ->
+        Result.map
+          (fun final -> (List.concat (List.rev acc), final))
+          (Chunked.Receiver.finish receiver)
+    | slice :: rest -> (
+        match Chunked.Receiver.feed receiver slice with
+        | Ok chunks -> go (chunks :: acc) rest
+        | Error _ as e -> e)
+  in
+  go [] slices
+
+let slicing_does_not_matter =
+  Test.make ~name:"chunks arrive whole however the stream is cut" ~count:300
+    chunked_stream (fun (non_final, final, _, slices) ->
+      receive slices = Ok (non_final, final))
+
+(* A changed length prefix can still frame the same chunks, since lengths are
+   not authenticated: a 1-byte length and its 2-byte form differ in a bit. But
+   then nothing that the receiver returns has changed. *)
+let corrupted_stream_is_refused =
+  let open Gen in
+  let generator =
+    let* non_final, final, stream, _ = chunked_stream in
+    let* position = int_bound (String.length stream - 1) in
+    let* bit = int_bound 7 in
+    let bytes = Bytes.of_string stream in
+    Bytes.set_uint8 bytes position
+      (Bytes.get_uint8 bytes position lxor (1 lsl bit));
+    let+ slices = slices (Bytes.unsafe_to_string bytes) in
+    (non_final, final, slices)
+  in
+  Test.make
+    ~name:"a chunked stream with one bit changed is refused or unchanged"
+    ~count:500 generator (fun (non_final, final, slices) ->
+      match receive slices with
+      | Error _ -> true
+      | Ok received -> received = (non_final, final))
+
+let chunked_receivers_are_total =
+  Test.make ~name:"chunked receivers refuse arbitrary streams without raising"
+    ~count:1000
+    (Gen.pair
+       (Gen.oneof [ hostile_request; Gen.string_size (Gen.int_range 0 100) ])
+       Gen.bool)
+    (fun (input, as_response) ->
+      let receiver =
+        if as_response then
+          let config = Gateway.Key.config (List.hd (Lazy.force keys)) in
+          let _, _, context = ok (Chunked.Client.request ~rng config) in
+          Chunked.Client.response context
+        else
+          Chunked.Gateway.receiver
+            (Chunked.Gateway.request (Lazy.force gateway))
+      in
+      Result.is_error (Chunked.open_all receiver input))
+
 let tests =
   List.map
     (QCheck_alcotest.to_alcotest ~speed_level:`Quick)
@@ -146,4 +240,7 @@ let tests =
       client_is_total;
       configurations_are_canonical;
       configurations_are_total;
+      slicing_does_not_matter;
+      corrupted_stream_is_refused;
+      chunked_receivers_are_total;
     ]

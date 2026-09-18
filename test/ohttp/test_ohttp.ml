@@ -5,6 +5,7 @@ let () =
       ("rfc9458", Test_rfc9458.tests);
       ("key_config", Test_key_config.tests);
       ("encapsulation", Test_encapsulation.tests);
+      ("chunked", Test_chunked.tests);
       ("upstream vectors", Test_upstream_vectors.tests);
       ("properties", Test_properties.tests);
     ]

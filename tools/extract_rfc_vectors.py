@@ -13,6 +13,10 @@ corpus it cannot account for.
     curl -O https://www.rfc-editor.org/rfc/rfc9458.txt
     python3 tools/extract_rfc_vectors.py rfc9458 rfc9458.txt \\
         test/vectors/rfc9458.json
+
+    curl -O https://www.ietf.org/archive/id/draft-ietf-ohai-chunked-ohttp-08.txt
+    python3 tools/extract_rfc_vectors.py chunked-ohttp-08 \\
+        draft-ietf-ohai-chunked-ohttp-08.txt test/vectors/chunked-ohttp-08.json
 """
 
 from __future__ import annotations
@@ -120,18 +124,22 @@ RFC9458_VALUES = (
 )
 
 
-def hex_paragraphs(lines: list[str]) -> list[bytes]:
+def hex_paragraph_lines(lines: list[str]) -> list[list[bytes]]:
     """Paragraphs that consist of nothing but indented hexadecimal digits."""
-    paragraphs: list[bytes] = []
-    current: list[str] | None = None
+    paragraphs: list[list[bytes]] = []
+    current: list[bytes] | None = None
     for line in lines + [""]:
-        if re.fullmatch(r" {3}[0-9a-f]+", line):
-            current = (current or []) + [line.strip()]
+        if re.fullmatch(r" {3}(?:[0-9a-f]{2})+", line):
+            current = (current or []) + [bytes.fromhex(line.strip())]
         else:
             if current is not None and not line.strip():
-                paragraphs.append(bytes.fromhex("".join(current)))
+                paragraphs.append(current)
             current = None
     return paragraphs
+
+
+def hex_paragraphs(lines: list[str]) -> list[bytes]:
+    return [b"".join(paragraph) for paragraph in hex_paragraph_lines(lines)]
 
 
 def hkdf_expand_sha256(prk: bytes, info: bytes, length: int) -> bytes:
@@ -210,11 +218,142 @@ def extract_rfc9458(text: str) -> list[dict[str, Any]]:
     return [vector]
 
 
+CHUNKED_URL = "https://www.ietf.org/archive/id/draft-ietf-ohai-chunked-ohttp-08.txt"
+CHUNKED_SHA256 = "c7fa23ec2b34b75744c2ba5275d628d5607c30125c7c9a32fb05f14f0688c207"
+
+# The values of the draft's Appendix A in the order they appear. A value that
+# the draft splits over lines "to show where these chunks start" has the length
+# of each line; the others have a single length.
+CHUNKED_VALUES: tuple[tuple[str, int | tuple[int, ...]], ...] = (
+    ("skR", 32),
+    ("key_config", 45),
+    ("request", 25),
+    ("skE", 32),
+    ("pkE", 32),
+    ("info", 37),
+    # header, encapsulated key, 12 and 13 bytes of request, and an empty final
+    # chunk, each chunk with its length prefix and a 16-byte tag
+    ("encapsulated_request", (7, 32, 1 + 12 + 16, 1 + 13 + 16, 1 + 0 + 16)),
+    ("response", 3),
+    ("secret", 16),
+    ("salt", 48),
+    ("prk", 32),
+    ("aead_key", 16),
+    ("aead_nonce", 12),
+    # response nonce, 1 and 2 bytes of response, and an empty final chunk
+    ("encapsulated_response", (16, 1 + 1 + 16, 1 + 2 + 16, 1 + 0 + 16)),
+    ("chunk_nonces", (12, 12, 12)),
+)
+
+
+def unpaginate(text: str) -> list[str]:
+    """Remove the page breaks of an Internet-Draft, with their running header
+    and footer, and the blank lines that surround them."""
+    lines = text.splitlines()
+    result: list[str] = []
+    index = 0
+    while index < len(lines):
+        if "\f" in lines[index] or re.search(r"\[Page \d+\]\s*$", lines[index]):
+            while result and not result[-1].strip():
+                result.pop()
+            index += 1
+            while index < len(lines) and (
+                not lines[index].strip()
+                or "\f" in lines[index]
+                or lines[index].startswith("Internet-Draft")
+            ):
+                index += 1
+            result.append("")
+            continue
+        result.append(lines[index])
+        index += 1
+    return result
+
+
+def extract_chunked(text: str) -> list[dict[str, Any]]:
+    lines = unpaginate(text)
+    starts = [i for i, line in enumerate(lines) if line.startswith("Appendix A.  Example")]
+    ends = [i for i, line in enumerate(lines) if line == "Acknowledgments"]
+    if not starts or not ends:
+        fail("cannot find Appendix A")
+    paragraphs = hex_paragraph_lines(lines[starts[-1] : ends[-1]])
+    if len(paragraphs) != len(CHUNKED_VALUES):
+        fail(f"expected {len(CHUNKED_VALUES)} values, found {len(paragraphs)}")
+    values: dict[str, bytes] = {}
+    parts: dict[str, list[bytes]] = {}
+    for (name, lengths), paragraph in zip(CHUNKED_VALUES, paragraphs):
+        if isinstance(lengths, int):
+            value = b"".join(paragraph)
+            if len(value) != lengths:
+                fail(f"{name}: expected {lengths} bytes, found {len(value)}")
+            values[name] = value
+        else:
+            found = tuple(len(line) for line in paragraph)
+            if found != lengths:
+                fail(f"{name}: expected lines of {lengths} bytes, found {found}")
+            parts[name] = paragraph
+
+    request, response = parts["encapsulated_request"], parts["encapsulated_response"]
+    header, response_nonce = request[0], response[0]
+    nonce = int.from_bytes(values["aead_nonce"], "big")
+    checks = {
+        "the info ends with the request header": values["info"][-7:] == header,
+        "the info starts with the chunked request label": values["info"][:-7]
+        == b"message/bhttp chunked request\x00",
+        "the request carries pkE": request[1] == values["pkE"],
+        "the salt is pkE and the response nonce": values["salt"]
+        == values["pkE"] + response_nonce,
+        "every non-final chunk starts with its length": all(
+            chunk[0] == len(chunk) - 1 for chunk in request[2:4] + response[1:3]
+        ),
+        "every final chunk starts with a zero length": request[4][0] == 0
+        and response[3][0] == 0,
+        "prk = Extract(salt, secret)": hmac.new(
+            values["salt"], values["secret"], hashlib.sha256
+        ).digest()
+        == values["prk"],
+        'aead_key = Expand(prk, "key", Nk)': hkdf_expand_sha256(
+            values["prk"], b"key", 16
+        )
+        == values["aead_key"],
+        'aead_nonce = Expand(prk, "nonce", Nn)': hkdf_expand_sha256(
+            values["prk"], b"nonce", 12
+        )
+        == values["aead_nonce"],
+        # Section 6.2: the counter is XORed into the nonce, not added to it.
+        "chunk_nonce = aead_nonce XOR counter": parts["chunk_nonces"]
+        == [(nonce ^ counter).to_bytes(12, "big") for counter in range(3)],
+    }
+    for description, holds in checks.items():
+        if not holds:
+            fail(f"Appendix A is inconsistent: {description}")
+
+    vector: dict[str, Any] = {
+        "name": "appendix A",
+        "key_id": header[0],
+        "kem_id": int.from_bytes(header[1:3], "big"),
+        "kdf_id": int.from_bytes(header[3:5], "big"),
+        "aead_id": int.from_bytes(header[5:7], "big"),
+    }
+    for name, _ in CHUNKED_VALUES:
+        if name in values:
+            vector[name] = values[name].hex()
+        else:
+            vector[name] = [part.hex() for part in parts[name]]
+        if name == "secret":
+            vector["response_nonce"] = response_nonce.hex()
+    # What the appendix says each chunk holds, for the tests to seal and expect.
+    vector["request_chunks"] = [values["request"][:12].hex(), values["request"][12:].hex(), ""]
+    vector["response_chunks"] = [values["response"][:1].hex(), values["response"][1:].hex(), ""]
+    return [vector]
+
+
 Extractor = Callable[[str], list[dict[str, Any]]]
 
 SOURCES: dict[str, tuple[str, str, Extractor]] = {
     "rfc9292": (RFC9292_URL, RFC9292_SHA256, extract_rfc9292),
     "rfc9458": (RFC9458_URL, RFC9458_SHA256, extract_rfc9458),
+    "chunked-ohttp-08": (CHUNKED_URL, CHUNKED_SHA256, extract_chunked),
 }
 
 

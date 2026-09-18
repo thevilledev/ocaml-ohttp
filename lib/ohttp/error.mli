@@ -20,6 +20,9 @@ type t =
       (** An encapsulated message did not decrypt. Every failure that a peer can
           cause is reported this way, so that a gateway does not tell its peer
           which step failed. *)
+  | Chunk_too_large of int
+      (** A chunk of a chunked message is larger than the receiver accepts, or
+          than the sender is set to produce. The argument is its length. *)
   | Hpke of Hpke.Error.t  (** A failure that is not the peer's doing. *)
 
 val to_string : t -> string

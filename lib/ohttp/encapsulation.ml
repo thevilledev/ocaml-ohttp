@@ -51,9 +51,9 @@ let seal_response (suite : Suite.t) ~enc ~secret ~response_nonce response =
   if String.length response_nonce <> Suite.response_nonce_length suite.aead then
     invalid_arg "Encapsulation.seal_response: wrong response nonce length";
   let* { key; nonce; _ } = response_keys suite ~enc ~secret ~response_nonce in
+  let* key = hpke_error (Hpke.Aead.key suite.aead key) in
   let* sealed =
-    hpke_error
-      (Hpke.Aead.seal suite.aead ~key ~nonce ~aad:"" ~plaintext:response)
+    hpke_error (Hpke.Aead.seal key ~nonce ~aad:"" ~plaintext:response)
   in
   Ok (response_nonce ^ sealed)
 
@@ -68,7 +68,8 @@ let open_response (suite : Suite.t) ~enc ~secret encapsulated =
         (String.length encapsulated - nonce_length)
     in
     let* { key; nonce; _ } = response_keys suite ~enc ~secret ~response_nonce in
-    match Hpke.Aead.open_ suite.aead ~key ~nonce ~aad:"" ~ciphertext with
+    let* key = hpke_error (Hpke.Aead.key suite.aead key) in
+    match Hpke.Aead.open_ key ~nonce ~aad:"" ~ciphertext with
     | Ok response -> Ok response
     | Error Hpke.Error.Open_error -> Error Error.Decapsulation_failed
     | Error e -> Error (Error.Hpke e)

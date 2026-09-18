@@ -1,0 +1,56 @@
+{
+  "source": {
+    "url": "https://www.ietf.org/archive/id/draft-ietf-ohai-chunked-ohttp-08.txt",
+    "sha256": "c7fa23ec2b34b75744c2ba5275d628d5607c30125c7c9a32fb05f14f0688c207"
+  },
+  "vectors": [
+    {
+      "name": "appendix A",
+      "key_id": 1,
+      "kem_id": 32,
+      "kdf_id": 1,
+      "aead_id": 1,
+      "skR": "1c190d72acdbe4dbc69e680503bb781a932c70a12c8f3754434c67d8640d8698",
+      "key_config": "010020668eb21aace159803974a4c67f08b4152d29bed10735fd08f98ccdd6fe09570800080001000100010003",
+      "request": "00034745540568747470730b6578616d706c652e636f6d012f",
+      "skE": "b26d565f3f875ed480d1abced3d665159650c99174fd0b124ac4bda0c64ae324",
+      "pkE": "8811eb457e100811c40a0aa71340a1b81d804bb986f736f2f566a7199761a032",
+      "info": "6d6573736167652f6268747470206368756e6b656420726571756573740001002000010001",
+      "encapsulated_request": [
+        "01002000010001",
+        "8811eb457e100811c40a0aa71340a1b81d804bb986f736f2f566a7199761a032",
+        "1c2ad24942d4d692563012f2980c8fef437a336b9b2fc938ef77a5834f",
+        "1d2e33d8fd25577afe31bd1c79d094f76b6250ae6549b473ecd950501311",
+        "001c6c1395d0ef7c1022297966307b8a7f"
+      ],
+      "response": "0140c8",
+      "secret": "1d4484834ae36102a6ac42a5523454d9",
+      "response_nonce": "bcce7f4cb921309ba5d62edf1769ef09",
+      "salt": "8811eb457e100811c40a0aa71340a1b81d804bb986f736f2f566a7199761a032bcce7f4cb921309ba5d62edf1769ef09",
+      "prk": "3967884b5f7b4bce4a5320a3e3f79fdc97389f7deba1c1e11c5ea62278187786",
+      "aead_key": "8209f78f2a1610d80c7125009b00aff0",
+      "aead_nonce": "fead854635d2d5527d64f546",
+      "encapsulated_response": [
+        "bcce7f4cb921309ba5d62edf1769ef09",
+        "1179bf1cc87fa0e2c02de4546945aa3d1e48",
+        "12b348b5bd4c594c16b6170b07b475845d1f32",
+        "00ed9d8a796617a5b27265f4d73247f639"
+      ],
+      "chunk_nonces": [
+        "fead854635d2d5527d64f546",
+        "fead854635d2d5527d64f547",
+        "fead854635d2d5527d64f544"
+      ],
+      "request_chunks": [
+        "00034745540568747470730b",
+        "6578616d706c652e636f6d012f",
+        ""
+      ],
+      "response_chunks": [
+        "01",
+        "40c8",
+        ""
+      ]
+    }
+  ]
+}

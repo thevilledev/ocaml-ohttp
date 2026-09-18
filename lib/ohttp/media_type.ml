@@ -3,6 +3,8 @@
 
 let ohttp_request = "message/ohttp-req"
 let ohttp_response = "message/ohttp-res"
+let ohttp_chunked_request = "message/ohttp-chunked-req"
+let ohttp_chunked_response = "message/ohttp-chunked-res"
 let ohttp_keys = "application/ohttp-keys"
 let bhttp = "message/bhttp"
 let is_whitespace = function ' ' | '\t' -> true | _ -> false

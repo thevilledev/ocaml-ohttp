@@ -11,4 +11,7 @@
   qcheck-core
   qcheck-alcotest
   yojson)
- (deps ../vectors/rfc9458.json ../vectors/ohttp-go-vectors.json))
+ (deps
+  ../vectors/rfc9458.json
+  ../vectors/chunked-ohttp-08.json
+  ../vectors/ohttp-go-vectors.json))

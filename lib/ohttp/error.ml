@@ -10,6 +10,7 @@ type t =
   | Unknown_key_id of int
   | Unsupported_suite of { kem : int; kdf : int; aead : int }
   | Decapsulation_failed
+  | Chunk_too_large of int
   | Hpke of Hpke.Error.t
 
 let to_string = function
@@ -24,6 +25,7 @@ let to_string = function
         "the key does not offer KEM 0x%04x with KDF 0x%04x and AEAD 0x%04x" kem
         kdf aead
   | Decapsulation_failed -> "decapsulation failed"
+  | Chunk_too_large n -> Printf.sprintf "chunk of %d bytes is too large" n
   | Hpke e -> Format.asprintf "hpke error: %a" Hpke.Error.pp e
 
 let pp fmt e = Format.pp_print_string fmt (to_string e)

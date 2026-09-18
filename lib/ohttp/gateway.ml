@@ -47,53 +47,59 @@ let peer_error = function
       Error Error.Decapsulation_failed
   | Error e -> Error (Error.Hpke e)
 
-let decapsulate ?(labels = Encapsulation.bhttp_labels) t encapsulated =
-  let* key_id, kem_id, kdf_id, aead_id =
-    Encapsulation.parse_header encapsulated
-  in
+(* The key that a header addresses, and the suite it asks for. *)
+let addressed t message =
+  let* key_id, kem_id, kdf_id, aead_id = Encapsulation.parse_header message in
   let* key =
     match List.find_opt (fun key -> Key.key_id key = key_id) t with
     | Some key -> Ok key
     | None -> Error (Error.Unknown_key_id key_id)
   in
   let kem = Key_config.kem key.config in
-  let* suite =
-    (* The key's own list decides, not what this library could do. *)
-    match Suite.symmetric_of_ints (kdf_id, aead_id) with
-    | Some pair
-      when Hpke.Kem.to_int kem = kem_id && Key_config.offers key.config pair ->
-        Ok (Suite.make kem pair)
-    | Some _ | None ->
-        Error
-          (Error.Unsupported_suite
-             { kem = kem_id; kdf = kdf_id; aead = aead_id })
-  in
-  let enc_length = Hpke.Kem.encapsulated_key_size kem in
-  let rest = String.length encapsulated - Encapsulation.header_length in
-  if rest < enc_length then Error (Error.Truncated_message "encapsulated key")
+  (* The key's own list decides, not what this library could do. *)
+  match Suite.symmetric_of_ints (kdf_id, aead_id) with
+  | Some pair
+    when Hpke.Kem.to_int kem = kem_id && Key_config.offers key.config pair ->
+      Ok (key, Suite.make kem pair)
+  | Some _ | None ->
+      Error
+        (Error.Unsupported_suite { kem = kem_id; kdf = kdf_id; aead = aead_id })
+
+let header_length t message =
+  let* _, (suite : Suite.t) = addressed t message in
+  Ok (Encapsulation.header_length + Hpke.Kem.encapsulated_key_size suite.kem)
+
+let setup_receiver ~(labels : Encapsulation.labels) t message =
+  let* (key : Key.t), suite = addressed t message in
+  let enc_length = Hpke.Kem.encapsulated_key_size suite.kem in
+  if String.length message - Encapsulation.header_length < enc_length then
+    Error (Error.Truncated_message "encapsulated key")
   else
-    let enc = String.sub encapsulated Encapsulation.header_length enc_length in
-    let ciphertext =
-      String.sub encapsulated
-        (Encapsulation.header_length + enc_length)
-        (rest - enc_length)
-    in
-    let header = String.sub encapsulated 0 Encapsulation.header_length in
-    let info = Encapsulation.info ~label:labels.request ~header in
-    let* context =
+    let header = String.sub message 0 Encapsulation.header_length in
+    let enc = String.sub message Encapsulation.header_length enc_length in
+    let* receiver =
       peer_error
         (Hpke.Rfc9180.setup_base_receiver (Suite.hpke suite)
-           ~recipient:key.private_key ~encapsulated_key:enc ~info)
+           ~recipient:key.private_key ~encapsulated_key:enc
+           ~info:(Encapsulation.info ~label:labels.request ~header))
     in
-    let* request =
-      peer_error (Hpke.Rfc9180.Receiver.open_ context ~aad:"" ~ciphertext)
-    in
-    let* secret =
-      hpke_error
-        (Hpke.Rfc9180.Receiver.export context ~context:labels.response
-           ~length:(Suite.response_nonce_length suite.aead))
-    in
-    Ok (request, { suite; enc; secret })
+    Ok (suite, enc, receiver)
+
+let decapsulate ?(labels = Encapsulation.bhttp_labels) t encapsulated =
+  let* suite, enc, receiver = setup_receiver ~labels t encapsulated in
+  let first = Encapsulation.header_length + String.length enc in
+  let ciphertext =
+    String.sub encapsulated first (String.length encapsulated - first)
+  in
+  let* request =
+    peer_error (Hpke.Rfc9180.Receiver.open_ receiver ~aad:"" ~ciphertext)
+  in
+  let* secret =
+    hpke_error
+      (Hpke.Rfc9180.Receiver.export receiver ~context:labels.response
+         ~length:(Suite.response_nonce_length suite.aead))
+  in
+  Ok (request, { suite; enc; secret })
 
 let encapsulate ~rng { suite; enc; secret } response =
   let response_nonce =

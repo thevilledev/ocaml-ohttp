@@ -74,6 +74,29 @@ val decapsulate :
     is {!Error.Decapsulation_failed}. All of them are answered without
     encapsulation (RFC 9458 Section 5.2). *)
 
+(** {1 Building blocks}
+
+    What {!decapsulate} is made of, for other encapsulations under the same
+    keys, such as {!Chunked}. *)
+
+val header_length : t -> string -> (int, Error.t) result
+(** [header_length gateway message] is the length of the header and the
+    encapsulated key that start [message], of which only the first
+    {!Encapsulation.header_length} bytes are read. It fails as {!decapsulate}
+    does when the header names a key that the gateway does not hold, or
+    algorithms that the key does not offer. *)
+
+val setup_receiver :
+  labels:Encapsulation.labels ->
+  t ->
+  string ->
+  ( Suite.t * string * Hpke.Suite.encryption Hpke.Rfc9180.Receiver.t,
+    Error.t )
+  result
+(** [setup_receiver ~labels gateway message] is the suite, the encapsulated key,
+    and the HPKE receiver context of a message that starts with at least
+    {!header_length} bytes. *)
+
 val encapsulate :
   rng:Mirage_crypto_rng.g ->
   response_context ->

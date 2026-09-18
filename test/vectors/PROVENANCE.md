@@ -15,11 +15,12 @@ the RFC itself states.
 | --- | --- | --- |
 | `rfc9292.json` | RFC 9292, Copyright (c) 2022 IETF Trust and the persons identified as the document authors | IETF Trust Legal Provisions (BCP 78) |
 | `rfc9458.json` | RFC 9458, Copyright (c) 2024 IETF Trust and the persons identified as the document authors | IETF Trust Legal Provisions (BCP 78) |
+| `chunked-ohttp-08.json` | draft-ietf-ohai-chunked-ohttp-08, Copyright (c) 2026 IETF Trust and the persons identified as the document authors | IETF Trust Legal Provisions (BCP 78) |
 | `ohttp-go-vectors.json` | Generated for this project with [chris-wood/ohttp-go](https://github.com/chris-wood/ohttp-go) | ISC, as the rest of the project |
 
-RFC 9292 and RFC 9458 are IETF-stream documents. The files reproduce only the
-example values of RFC 9292 Section 5 and RFC 9458 Appendix A, with a citation
-of their source.
+RFC 9292, RFC 9458, and the chunked OHTTP draft are IETF-stream documents. The
+files reproduce only the example values of RFC 9292 Section 5, RFC 9458
+Appendix A, and the draft's Appendix A, with a citation of their source.
 
 ## RFC 9292
 
@@ -79,6 +80,36 @@ are authoritative.
 ```sh
 curl -O https://www.rfc-editor.org/rfc/rfc9458.txt
 python3 tools/extract_rfc_vectors.py rfc9458 rfc9458.txt test/vectors/rfc9458.json
+```
+
+## Chunked OHTTP
+
+| Source | SHA-256 of the text |
+| --- | --- |
+| <https://www.ietf.org/archive/id/draft-ietf-ohai-chunked-ohttp-08.txt> | `c7fa23ec2b34b75744c2ba5275d628d5607c30125c7c9a32fb05f14f0688c207` |
+
+The archive URL of a numbered draft is immutable. Revision 08 is the one in the
+RFC Editor's queue; when the RFC is published, the fixture moves to its text.
+
+`chunked-ohttp-08.json` holds the values of the draft's Appendix A. They are
+those of RFC 9458 Appendix A with other keys, except that the Encapsulated
+Request and Response are printed one part to a line, "to show where these
+chunks start", and that the nonces of the three response chunks follow. The
+extractor removes the page breaks of the draft, keeps those lines apart, and
+records what the appendix says each chunk holds as `request_chunks` and
+`response_chunks`: 12 and 13 bytes of the request and an empty final chunk, and
+1 and 2 bytes of the response and an empty final chunk.
+
+Besides the checks of the RFC 9458 extraction, it verifies that every non-final
+chunk starts with its own length, that every final chunk starts with a zero
+length, and that the three chunk nonces are the base nonce XORed with 0, 1, and
+2. The third nonce ends in `44` where addition would give `48`, which makes
+this vector the test of that distinction.
+
+```sh
+curl -O https://www.ietf.org/archive/id/draft-ietf-ohai-chunked-ohttp-08.txt
+python3 tools/extract_rfc_vectors.py chunked-ohttp-08 \
+  draft-ietf-ohai-chunked-ohttp-08.txt test/vectors/chunked-ohttp-08.json
 ```
 
 ## ohttp-go

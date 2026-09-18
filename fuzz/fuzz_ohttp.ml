@@ -58,7 +58,52 @@ let key_config_list input =
         (Printf.sprintf "Key_config.decode_list raised %s"
            (Printexc.to_string e))
 
+(* A chunked receiver takes its stream in whatever slices the transport
+   delivers, so the fuzzer chooses them too. Nothing that it invents was sealed
+   by anyone, so nothing may come out as a complete message. *)
+let chunked name receiver slices =
+  let rec feed = function
+    | [] -> Chunked.Receiver.finish receiver
+    | slice :: rest -> (
+        match Chunked.Receiver.feed receiver slice with
+        | Ok _ -> feed rest
+        | Error _ as e -> e)
+  in
+  match feed slices with
+  | Error _ -> ()
+  | Ok _ -> fail (name ^ ": a stream that nobody sealed was accepted")
+  | exception e ->
+      fail (Printf.sprintf "%s raised %s" name (Printexc.to_string e))
+
 let () =
+  add_test ~name:"chunked request"
+    [ list bytes ]
+    (fun slices ->
+      chunked "chunked request"
+        (Chunked.Gateway.receiver (Chunked.Gateway.request gateway))
+        slices);
+  add_test ~name:"chunked request with a header"
+    [ range (List.length keys); range (Array.length symmetric); list bytes ]
+    (fun key pair slices ->
+      let key = List.nth keys key in
+      let suite =
+        Suite.make (Key_config.kem (Gateway.Key.config key)) symmetric.(pair)
+      in
+      let header =
+        Encapsulation.header ~key_id:(Gateway.Key.key_id key) suite
+      in
+      chunked "chunked request"
+        (Chunked.Gateway.receiver (Chunked.Gateway.request gateway))
+        (header :: slices));
+  add_test ~name:"chunked response"
+    [ range (List.length keys); range (Array.length symmetric); list bytes ]
+    (fun key pair slices ->
+      let config = Gateway.Key.config (List.nth keys key) in
+      let _, _, context =
+        get
+          (Chunked.Client.request ~rng ~preference:[ symmetric.(pair) ] config)
+      in
+      chunked "chunked response" (Chunked.Client.response context) slices);
   add_test ~name:"key configuration" [ bytes ] key_config;
   add_test ~name:"key configuration list" [ bytes ] key_config_list;
   add_test ~name:"request" [ bytes ]
