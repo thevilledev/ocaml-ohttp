@@ -7,6 +7,7 @@ let ohttp_chunked_request = "message/ohttp-chunked-req"
 let ohttp_chunked_response = "message/ohttp-chunked-res"
 let ohttp_keys = "application/ohttp-keys"
 let bhttp = "message/bhttp"
+let problem_json = "application/problem+json"
 let is_whitespace = function ' ' | '\t' -> true | _ -> false
 
 let trim s =

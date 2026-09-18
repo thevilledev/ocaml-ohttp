@@ -6,7 +6,15 @@ let test_constants () =
   Alcotest.(check string)
     "response" "message/ohttp-res" Media_type.ohttp_response;
   Alcotest.(check string) "keys" "application/ohttp-keys" Media_type.ohttp_keys;
-  Alcotest.(check string) "bhttp" "message/bhttp" Media_type.bhttp
+  Alcotest.(check string) "bhttp" "message/bhttp" Media_type.bhttp;
+  Alcotest.(check string)
+    "chunked request" "message/ohttp-chunked-req"
+    Media_type.ohttp_chunked_request;
+  Alcotest.(check string)
+    "chunked response" "message/ohttp-chunked-res"
+    Media_type.ohttp_chunked_response;
+  Alcotest.(check string)
+    "problem" "application/problem+json" Media_type.problem_json
 
 let test_matches () =
   let matches = Media_type.matches Media_type.ohttp_request in

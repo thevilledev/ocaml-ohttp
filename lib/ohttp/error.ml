@@ -11,6 +11,12 @@ type t =
   | Unsupported_suite of { kem : int; kdf : int; aead : int }
   | Decapsulation_failed
   | Chunk_too_large of int
+  | Bhttp of Bhttp.Error.t
+  | Continue_expectation
+  | Method_not_allowed of string
+  | Unsupported_media_type of string option
+  | Unexpected_status of int
+  | Unexpected_content_type of string option
   | Hpke of Hpke.Error.t
 
 let to_string = function
@@ -26,6 +32,16 @@ let to_string = function
         kdf aead
   | Decapsulation_failed -> "decapsulation failed"
   | Chunk_too_large n -> Printf.sprintf "chunk of %d bytes is too large" n
+  | Bhttp e -> "binary http error: " ^ Bhttp.Error.to_string e
+  | Continue_expectation -> "a 100-continue expectation cannot be encapsulated"
+  | Method_not_allowed meth ->
+      Printf.sprintf "method %s is not allowed" (String.escaped meth)
+  | Unsupported_media_type None -> "no content type"
+  | Unsupported_media_type (Some t) | Unexpected_content_type (Some t) ->
+      Printf.sprintf "unexpected content type %s" (String.escaped t)
+  | Unexpected_content_type None -> "the response has no content type"
+  | Unexpected_status n ->
+      Printf.sprintf "status %d in place of an encapsulated response" n
   | Hpke e -> Format.asprintf "hpke error: %a" Hpke.Error.pp e
 
 let pp fmt e = Format.pp_print_string fmt (to_string e)

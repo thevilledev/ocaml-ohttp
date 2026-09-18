@@ -23,6 +23,21 @@ type t =
   | Chunk_too_large of int
       (** A chunk of a chunked message is larger than the receiver accepts, or
           than the sender is set to produce. The argument is its length. *)
+  | Bhttp of Bhttp.Error.t
+      (** What was encapsulated is not a valid Binary HTTP message. *)
+  | Continue_expectation
+      (** A request with a [100-continue] expectation cannot be encapsulated
+          (RFC 9458 Section 5.1). *)
+  | Method_not_allowed of string
+      (** A gateway was sent something other than a [POST]. *)
+  | Unsupported_media_type of string option
+      (** A gateway was sent content that is not an encapsulated request. *)
+  | Unexpected_status of int
+      (** A client was answered with a status other than 200, and so not with an
+          encapsulated response. Its key configuration may be out of date (RFC
+          9458 Section 5.2). *)
+  | Unexpected_content_type of string option
+      (** A client was answered with content of another media type. *)
   | Hpke of Hpke.Error.t  (** A failure that is not the peer's doing. *)
 
 val to_string : t -> string

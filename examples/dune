@@ -2,3 +2,46 @@
  (name basic)
  (modules basic)
  (libraries ohttp bhttp mirage-crypto-rng.unix))
+
+; The rest shows Oblivious HTTP over a real HTTP library. The packages do not
+; depend on one, so this library is optional: it is built only where
+; cohttp-lwt-unix is installed.
+
+(library
+ (name example_services)
+ (modules cohttp_adapter services main)
+ (optional)
+ (libraries
+  ohttp
+  bhttp
+  hpke
+  cohttp
+  cohttp-lwt
+  cohttp-lwt-unix
+  http
+  lwt
+  lwt.unix
+  uri
+  mirage-crypto-rng
+  mirage-crypto-rng.unix))
+
+; An executable cannot be optional, so each of these is a call into Run, which
+; is the library above where it is available, and an explanation where it is
+; not. Everything then builds with or without cohttp-lwt-unix.
+
+(executables
+ (names ohttp_client ohttp_gateway ohttp_relay e2e)
+ (modules ohttp_client ohttp_gateway ohttp_relay e2e run)
+ (libraries
+  (select
+   run.ml
+   from
+   (example_services -> run.cohttp.ml)
+   (-> run.missing.ml))))
+
+; dune build @e2e: a client, a relay, a gateway, and a target on this machine.
+
+(rule
+ (alias e2e)
+ (action
+  (run %{exe:e2e.exe})))

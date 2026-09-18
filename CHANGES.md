@@ -8,6 +8,10 @@
   `hpke` package. A gateway accepts only what its keys advertise, and reports
   everything that a peer can cause as one error. The example of RFC 9458
   Appendix A is reproduced byte for byte in both directions.
+- Add `Ohttp.Http_message` and `Ohttp.Http_binding`: exchanges of Binary HTTP
+  messages, and the fields, checks, and error responses of RFC 9458 Section 5,
+  without I/O. Examples over cohttp-lwt-unix show a client, a relay, a gateway,
+  and a target, and run end to end with `dune build @e2e`.
 - Validate both packages against chris-wood/ohttp-go and martinthomson/ohttp
   with a differential harness, in both roles and for every suite in common, and
   replay what they produced in the test suites.

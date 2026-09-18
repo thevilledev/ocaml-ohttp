@@ -20,6 +20,9 @@ val ohttp_keys : string
 val bhttp : string
 (** ["message/bhttp"], the default content of an encapsulated message. *)
 
+val problem_json : string
+(** ["application/problem+json"], a problem document (RFC 9457). *)
+
 val matches : string -> string -> bool
 (** [matches media_type content_type] is [true] when the [Content-Type] field
     value [content_type] names [media_type]. Type and subtype are compared
