@@ -1,0 +1,3 @@
+(library
+ (name ohttp)
+ (public_name ohttp))

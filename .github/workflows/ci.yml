@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            ocaml: "4.14"
+          - os: ubuntu-latest
+            ocaml: "5.4"
+          - os: macos-latest
+            ocaml: "5.4"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: ${{ matrix.ocaml }}
+          dune-cache: true
+      # ohttp needs hpke 0.2.0, which is not on opam yet. Remove this pin once
+      # it is released.
+      - run: opam pin add hpke.0.2.0 git+https://github.com/thevilledev/ocaml-hpke.git#main --no-action
+      - run: opam install . --deps-only --with-test --with-doc
+      - run: opam exec -- dune build @all @doc
+      - run: opam exec -- dune runtest
+
+  packaging:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: "5.4"
+          dune-cache: true
+      - run: opam lint bhttp.opam ohttp.opam
+      - run: opam pin add hpke.0.2.0 git+https://github.com/thevilledev/ocaml-hpke.git#main --no-action
+      # Each package must build and pass its tests without the other's sources.
+      - run: opam install ./bhttp.opam --with-test
+      - run: opam install ./ohttp.opam --with-test
+
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: "5.4"
+          dune-cache: true
+      - run: opam install ocamlformat.0.29.0
+      - run: opam exec -- dune build @fmt

@@ -1,0 +1,4 @@
+(test
+ (name test_ohttp)
+ (package ohttp)
+ (libraries ohttp alcotest))

@@ -1,0 +1,36 @@
+opam-version: "2.0"
+synopsis: "Oblivious HTTP (RFC 9458) for OCaml"
+description: """
+An implementation of Oblivious HTTP (RFC 9458): key configurations, and request
+and response encapsulation for clients and gateways. Messages are Binary HTTP
+(RFC 9292) from the bhttp package, and the cryptography is delegated to the
+hpke package. The library performs no I/O, so any HTTP library can carry the
+encapsulated messages.
+"""
+maintainer: ["Ville Vesilehto <ville@vesilehto.fi>"]
+authors: ["Ville Vesilehto <ville@vesilehto.fi>"]
+license: "ISC"
+tags: ["cryptography" "privacy" "ohttp" "rfc9458" "oblivious http" "hpke"]
+homepage: "https://github.com/thevilledev/ocaml-ohttp"
+bug-reports: "https://github.com/thevilledev/ocaml-ohttp/issues"
+dev-repo: "git+https://github.com/thevilledev/ocaml-ohttp.git"
+x-maintenance-intent: ["(latest)"]
+depends: [
+  "ocaml" {>= "4.14"}
+  "dune" {>= "3.12"}
+  "bhttp" {= version}
+  "hpke" {>= "0.2.0"}
+  "mirage-crypto-rng" {>= "2.4.0"}
+  "alcotest" {with-test & >= "1.7.0"}
+  "qcheck-alcotest" {with-test & >= "0.25"}
+  "crowbar" {with-test & >= "0.2.1"}
+  "yojson" {with-test & >= "2.0.0"}
+  "odoc" {with-doc}
+  "ocamlformat" {with-dev-setup & = "0.29.0"}
+]
+build: [
+  ["dune" "subst"] {dev}
+  ["dune" "build" "-p" name "-j" jobs]
+  ["dune" "runtest" "-p" name "-j" jobs] {with-test}
+  ["dune" "build" "@doc" "-p" name "-j" jobs] {with-doc}
+]
