@@ -1,4 +1,5 @@
 (test
  (name test_bhttp)
  (package bhttp)
- (libraries bhttp alcotest))
+ (libraries bhttp alcotest qcheck-core qcheck-alcotest yojson)
+ (deps ../vectors/rfc9292.json))

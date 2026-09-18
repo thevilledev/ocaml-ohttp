@@ -1,3 +1,4 @@
 (library
  (name bhttp)
- (public_name bhttp))
+ (public_name bhttp)
+ (private_modules wire))

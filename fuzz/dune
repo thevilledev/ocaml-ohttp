@@ -1,0 +1,6 @@
+(executable
+ (name fuzz_bhttp)
+ (modules fuzz_bhttp)
+ (libraries bhttp crowbar)
+ (enabled_if
+  (= %{profile} fuzz)))
