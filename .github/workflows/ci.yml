@@ -1,7 +1,11 @@
 name: CI
 
+# Branch pushes are covered by their pull request, so only main runs on push.
+# Otherwise every commit on a pull request runs the fuzz and differential
+# jobs twice.
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
