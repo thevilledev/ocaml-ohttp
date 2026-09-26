@@ -30,6 +30,13 @@ not production-ready. They are published for interoperability review.
   the risks of truncation that Section 7.1 of the draft describes. Chunks
   beyond the size limit are refused from their length, before they are
   buffered.
+- A relay or a gateway of the adapter packages holds a bounded amount of
+  what its peers send. Each message is read in full before it is acted on, but
+  one longer than the limit is refused: from its `content-length` before it is
+  read, or once it has been counted past the limit, and nothing of it is kept.
+  The limits default to 1 MiB for a request, 8 MiB for a response, and 256
+  requests in flight for each relay or gateway (`Ohttp.Service`), and a
+  gateway checks the length of a request again before opening it.
 - The random generator is always an argument. The libraries never reach for a
   global one.
 
@@ -59,10 +66,13 @@ not production-ready. They are published for interoperability review.
   reveals the length of what it carries; `?padding` is there for callers that
   need to hide it (RFC 9458 Section 6.2.3).
 - The relays and gateways of the adapter packages (`ohttp-cohttp-lwt`,
-  `ohttp-cohttp-eio`, `ohttp-piaf`) and of `examples/` read each message in
-  full and do not limit request sizes or rates; a deployment puts limits in
-  front of them. Their relays pass on only the content and its type, but do
-  none of the traffic analysis defences of RFC 9458 Section 6.2.
+  `ohttp-cohttp-eio`, `ohttp-piaf`) and of `examples/` do not limit the rate of
+  requests, nor how slowly a message may arrive: a client that sends slowly
+  holds one of the places in flight for as long as it takes. A deployment puts
+  rate limits and timeouts in front of them; only a relay can limit each
+  client, since a gateway sees only relays. Their relays pass on only the
+  content and its type, but do none of the traffic analysis defences of RFC
+  9458 Section 6.2.
 - An adapter's gateway forwards only to the authorities in its list of
   targets, and appends the request's path to the URI that the list gives. A
   gateway built on `Ohttp.Service` without the adapters must choose its targets

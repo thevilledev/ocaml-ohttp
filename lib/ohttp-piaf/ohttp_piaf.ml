@@ -22,6 +22,33 @@ let respond (response : Service.response) =
 
 let plain status = respond { status; headers = []; body = "" }
 
+(* The content of a body, unless it is longer than [max_size]: then the rest is
+   read without being kept, since neither a server nor a client is done with a
+   message until its body has been read. *)
+let read ~max_size headers body =
+  let too_long () = Result.map (fun () -> None) (Piaf.Body.drain body) in
+  if Service.exceeds ~max_size (Piaf.Headers.to_list headers) then too_long ()
+  else
+    let buffer = Buffer.create 1024 in
+    let stream = Piaf.Body.to_string_stream body in
+    let rec loop () =
+      match Piaf.Stream.take stream with
+      | None ->
+          Result.map
+            (fun () -> Some (Buffer.contents buffer))
+            (Piaf.Body.closed body)
+      | Some chunk when Buffer.length buffer + String.length chunk > max_size ->
+          too_long ()
+      | Some chunk ->
+          Buffer.add_string buffer chunk;
+          loop ()
+    in
+    loop ()
+
+(* [f ()], if [admit] lets it in, and [busy] otherwise. *)
+let admitted ~admit ~release f =
+  if admit () then Fun.protect f ~finally:release else respond Service.busy
+
 (* What failed is answered, unless the fiber is being cancelled. *)
 let or_else f ~default =
   try f () with Eio.Cancel.Cancelled _ as e -> raise e | _ -> default ()
@@ -32,9 +59,18 @@ module Gateway = struct
 
   let requests ?(now = Unix.gettimeofday) service forward
       ({ request; _ } : _ Piaf.Server.ctx) =
-    match Piaf.Body.to_string request.body with
+    admitted
+      ~admit:(fun () -> Service.Gateway.admit service)
+      ~release:(fun () -> Service.Gateway.release service)
+    @@ fun () ->
+    match
+      read
+        ~max_size:(Service.Gateway.max_request_size service)
+        request.headers request.body
+    with
     | Error _ -> plain 400
-    | Ok content -> (
+    | Ok None -> respond Service.content_too_large
+    | Ok (Some content) -> (
         match
           Service.Gateway.receive service ~now:(now ())
             ~meth:(Piaf.Method.to_string request.meth)
@@ -60,41 +96,46 @@ module Gateway = struct
     else plain 404
 end
 
-(* A request that is over when its response has been read. *)
-let fetch ?config ?(headers = []) ?body env ~meth uri =
+(* A request that is over when its response has been read, or found too long:
+   leaving the switch closes the connection. *)
+let fetch ?config ?(headers = []) ?body env ~max_size ~meth uri =
   Eio.Switch.run @@ fun sw ->
   match
     Piaf.Client.Oneshot.request ?config ~headers ?body ~sw env ~meth uri
   with
   | Error e -> Error (`Piaf e)
   | Ok (response : Piaf.Response.t) -> (
-      match Piaf.Body.to_string response.body with
+      match read ~max_size response.headers response.body with
       | Error e -> Error (`Piaf e)
-      | Ok content -> Ok (response, content))
+      | Ok None -> Error (`Ohttp (Ohttp.Error.Content_too_large max_size))
+      | Ok (Some content) -> Ok (response, content))
 
-let post ?config env uri (request : Service.request) =
+let post ?config env ~max_size uri (request : Service.request) =
   fetch ?config ~headers:request.headers
     ~body:(Piaf.Body.of_string request.body)
-    env ~meth:`POST uri
+    env ~max_size ~meth:`POST uri
 
 let ohttp r = Result.map_error (fun e -> `Ohttp e) r
 
 module Client = struct
-  let key_configs ?config env uri =
+  let key_configs ?config
+      ?(max_response_size = Service.default_max_response_size) env uri =
     Result.bind
       (fetch ?config
          ~headers:Ohttp.Http_binding.Client.key_config_request_headers env
-         ~meth:`GET uri) (fun ((response : Piaf.Response.t), content) ->
+         ~max_size:max_response_size ~meth:`GET uri)
+      (fun ((response : Piaf.Response.t), content) ->
         ohttp
           (Service.Client.key_configs
              ~status:(Piaf.Status.to_code response.status)
              ~headers:(Piaf.Headers.to_list response.headers)
              content))
 
-  let call ?config env ~rng ?preference ?framing ?padding ?(date = true)
+  let call ?config ?(max_response_size = Service.default_max_response_size) env
+      ~rng ?preference ?framing ?padding ?(date = true)
       ?(now = Unix.gettimeofday) ~relay key_config request =
     let rec send (request, exchange) =
-      Result.bind (post ?config env relay request)
+      Result.bind (post ?config env ~max_size:max_response_size relay request)
         (fun ((response : Piaf.Response.t), content) ->
           match
             Service.Client.finish exchange
@@ -115,10 +156,19 @@ module Client = struct
 end
 
 module Relay = struct
-  let handler ?config env ~gateway ({ request; _ } : _ Piaf.Server.ctx) =
-    match Piaf.Body.to_string request.body with
+  let handler ?config env relay ~gateway ({ request; _ } : _ Piaf.Server.ctx) =
+    admitted
+      ~admit:(fun () -> Service.Relay.admit relay)
+      ~release:(fun () -> Service.Relay.release relay)
+    @@ fun () ->
+    match
+      read
+        ~max_size:(Service.Relay.max_request_size relay)
+        request.headers request.body
+    with
     | Error _ -> plain 400
-    | Ok content -> (
+    | Ok None -> respond Service.content_too_large
+    | Ok (Some content) -> (
         match
           Service.Relay.request
             ~meth:(Piaf.Method.to_string request.meth)
@@ -130,7 +180,10 @@ module Relay = struct
             respond
               (match
                  or_else
-                   (fun () -> post ?config env gateway forwarded)
+                   (fun () ->
+                     post ?config env
+                       ~max_size:(Service.Relay.max_response_size relay)
+                       gateway forwarded)
                    ~default:(fun () -> Error (`Piaf (`Msg "no answer")))
                with
               | Ok ((response : Piaf.Response.t), content) ->
@@ -148,7 +201,8 @@ module Target = struct
       fields
     else ("host", request.authority) :: fields
 
-  let forward ?config env ~targets (request : Bhttp.Request.t) =
+  let forward ?config ?(max_response_size = Service.default_max_response_size)
+      env ~targets (request : Bhttp.Request.t) =
     let targets = List.map (fun (a, uri) -> (a, Uri.to_string uri)) targets in
     match Service.Gateway.target ~targets request with
     | Error response -> response
@@ -158,7 +212,7 @@ module Target = struct
             (fun () ->
               fetch ?config ~headers:(request_headers request)
                 ~body:(Piaf.Body.of_string request.content)
-                env
+                env ~max_size:max_response_size
                 ~meth:(Piaf.Method.of_string request.meth)
                 (Uri.of_string uri))
             ~default:(fun () -> Error (`Piaf (`Msg "no answer")))
@@ -167,6 +221,9 @@ module Target = struct
             Bhttp.Response.make
               ~status:(Piaf.Status.to_code response.status)
               ~headers:(fields response.headers) ~content ()
+        (* Too long to seal whole: the target failed to answer. *)
+        | Error (`Ohttp (Ohttp.Error.Content_too_large _)) ->
+            Bhttp.Response.make ~status:502 ()
         (* No answer from the target is an answer to the client, and is sealed
            like any other (RFC 9458 Section 5). *)
         | Error _ -> Bhttp.Response.make ~status:504 ())

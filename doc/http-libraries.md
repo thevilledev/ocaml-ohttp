@@ -24,8 +24,8 @@ Each adapter has the same parts, over its library's types:
 | --- | --- |
 | `Client.key_configs` | `GET`s a gateway's key configurations and decodes them |
 | `Client.call` | Encapsulates a request with a `date` field, posts it to a relay, checks and opens the answer, and retries once with the gateway's time if the gateway refuses the date |
-| `Relay.handler` | Passes a `POST` of type `message/ohttp-req` to one gateway with no field but its content type, and the gateway's answer back |
-| `Gateway.handler` | Serves the key configurations at `/.well-known/ohttp-gateway` and Encapsulated Requests at `/gateway`, checks for replay, and seals every answer once the encapsulation is off |
+| `Relay.handler` | Passes a `POST` of type `message/ohttp-req` to one gateway with no field but its content type, and the gateway's answer back, within the relay's [limits](#limits) |
+| `Gateway.handler` | Serves the key configurations at `/.well-known/ohttp-gateway` and Encapsulated Requests at `/gateway`, within the gateway's [limits](#limits), checks for replay, and seals every answer once the encapsulation is off |
 | `Target.forward` | Sends a decapsulated request to the target that a list of authorities names, and refuses the rest with a sealed 403 |
 
 A gateway's configuration is an `Ohttp.Service.Gateway.t`, which is the same
@@ -40,6 +40,20 @@ let service =
 
 With `~replay`, every request is checked for replay; `~checks_replay` leaves
 out those that the targets treat as idempotent, such as `GET`s.
+
+A relay's configuration is an `Ohttp.Service.Relay.t`, which holds its limits:
+
+```ocaml
+let relay = Ohttp.Service.Relay.create ()
+
+(* Over cohttp-lwt, forwarding to one gateway. *)
+let handler =
+  Ohttp_client.Relay.handler relay
+    ~gateway:(Uri.of_string "https://gateway.example/gateway")
+```
+
+Both values count the requests in flight, so each relay or gateway is built
+from one value that serves all of its requests.
 
 ### cohttp-lwt
 
@@ -125,15 +139,40 @@ Piaf reports failures as results, so `Ohttp_piaf.Client.call` returns
 `` `Ohttp `` for a failure of the protocol and `` `Piaf `` for one of the
 transport.
 
+### Limits
+
+A relay and a gateway read each message in full, as they must before opening
+it. What they hold at once is bounded by how long a message may be and how many
+requests they handle together:
+
+| Limit | Default | Set with | What exceeds it gets |
+| --- | --- | --- | --- |
+| A request that a relay or a gateway reads | 1 MiB | `~max_request_size` of `Ohttp.Service.Relay.create` and `Ohttp.Service.Gateway.create` | a 413 |
+| A response that a client, a relay, or `Target.forward` reads | 8 MiB | `~max_response_size` of `Ohttp.Service.Relay.create`, `Client.call`, `Client.key_configs`, and `Target.forward` | `Content_too_large` at a client, a 502 at a relay, and a sealed 502 at a gateway |
+| Requests that a relay or a gateway handles at once | 256 | `~max_in_flight` of `Ohttp.Service.Relay.create` and `Ohttp.Service.Gateway.create` | a 503 with `retry-after: 1` |
+
+A message whose `content-length` is over the limit is refused before its content
+is read; one without it is counted as it arrives, and refused once it passes the
+limit. What is refused is not kept. Servers read the rest of a refused request
+and throw it away, so that the connection can carry the next one, and so do the
+clients of cohttp-lwt and Piaf with a refused response; a cohttp-eio client
+closes the connection instead.
+
+An Encapsulated Response is a little longer than the response that it seals,
+and longer again with `?padding`. A relay in front of a gateway that forwards
+answers up to its limit needs a slightly higher `max_response_size`.
+
 ### What the adapters leave to the application
 
 - **Key configurations.** `Client.key_configs` is a plain `GET`. A client must
   obtain key configurations in a way that authenticates the gateway, and must
   get the same ones as every other client (RFC 9458 Sections 6.1 and 7).
-- **Limits.** The adapters read each message in full, as they must before
-  opening it, and set no limit on its size or on the rate of requests. Put a
-  limit in front of a relay or a gateway: in the server's configuration, or in
-  a proxy.
+- **Rates and timeouts.** The [limits](#limits) bound what a relay or a
+  gateway holds, not how often a client may ask, nor how slowly a message may
+  arrive. A relay is the party that knows its clients, and the one to limit the
+  rate of each; a gateway sees only relays. Put rate limits and timeouts in
+  the server's configuration or in a proxy in front of it, and the number of
+  connections too: cohttp-eio's `Server.run` takes `?max_connections`.
 - **Routing.** The relay's handler answers every path, and the gateway's
   handler two; mount them where the deployment needs them. Both gateway
   resources are also available alone, as `Gateway.key_configs` and

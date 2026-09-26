@@ -260,6 +260,86 @@ let test_target () =
     (target "@evil.example/");
   check "an empty path" (Error 400) (target "")
 
+let test_exceeds () =
+  let exceeds headers = Service.exceeds ~max_size:100 headers in
+  let check name expected headers =
+    Alcotest.(check bool) name expected (exceeds headers)
+  in
+  check "no field" false [];
+  check "at the limit" false [ ("content-length", "100") ];
+  check "over it" true [ ("content-length", "101") ];
+  check "any case, any spaces" true [ ("Content-Length", " 101 ") ];
+  check "too long to be an int" true
+    [ ("content-length", "99999999999999999999") ];
+  check "not a decimal number" false [ ("content-length", "0x1000") ];
+  check "negative" false [ ("content-length", "-1") ];
+  check "empty" false [ ("content-length", "") ];
+  check "another field" false [ ("x-content-length", "101") ]
+
+let test_request_size () =
+  let service =
+    Service.Gateway.create ~rng:(rng ()) ~max_request_size:50
+      (Lazy.force gateway)
+  in
+  let request, _ =
+    ok (Service.Client.start ~rng:(rng ()) (Lazy.force config) (get ()))
+  in
+  let _, answer = serve service request in
+  Alcotest.(check int) "refused in the clear" 413 answer.status;
+  let service =
+    Service.Gateway.create ~rng:(rng ())
+      ~max_request_size:(String.length request.body)
+      (Lazy.force gateway)
+  in
+  let inner, _ = serve service request in
+  Alcotest.(check bool) "at the limit" true (inner <> None)
+
+let test_in_flight () =
+  (* In order: the elements of a list are evaluated from the last. *)
+  let admissions n admit = List.init n (fun _ -> admit ()) in
+  let service =
+    Service.Gateway.create ~rng:(rng ()) ~max_in_flight:2 (Lazy.force gateway)
+  in
+  let admit () = Service.Gateway.admit service in
+  Alcotest.(check (list bool))
+    "two at once"
+    [ true; true; false; false ]
+    (admissions 4 admit);
+  Service.Gateway.release service;
+  Alcotest.(check (list bool))
+    "a place freed" [ true; false ] (admissions 2 admit);
+  let relay = Service.Relay.create ~max_in_flight:1 () in
+  let admit () = Service.Relay.admit relay in
+  Alcotest.(check (list bool)) "a relay" [ true; false ] (admissions 2 admit);
+  Service.Relay.release relay;
+  Alcotest.(check bool) "and again" true (admit ())
+
+let test_limits () =
+  let relay = Service.Relay.create () in
+  Alcotest.(check (pair int int))
+    "the defaults"
+    (1 lsl 20, 8 lsl 20)
+    (Service.Relay.max_request_size relay, Service.Relay.max_response_size relay);
+  Alcotest.(check int)
+    "a gateway's" (1 lsl 20)
+    (Service.Gateway.max_request_size (service ()));
+  let refused name f =
+    match f () with
+    | _ -> Alcotest.failf "%s accepted" name
+    | exception Invalid_argument _ -> ()
+  in
+  refused "no room" (fun () -> Service.Relay.create ~max_request_size:0 ());
+  refused "a negative size" (fun () ->
+      Service.Relay.create ~max_response_size:(-1) ());
+  refused "no place" (fun () ->
+      Service.Gateway.create ~rng:(rng ()) ~max_in_flight:0 (Lazy.force gateway));
+  Alcotest.(check int) "too large" 413 Service.content_too_large.status;
+  Alcotest.(check int) "busy" 503 Service.busy.status;
+  Alcotest.(check (list (pair string string)))
+    "and when to retry"
+    [ ("retry-after", "1") ]
+    Service.busy.headers
+
 let tests =
   [
     Alcotest.test_case "exchange" `Quick test_exchange;
@@ -275,4 +355,8 @@ let tests =
     Alcotest.test_case "key configurations" `Quick test_key_configs;
     Alcotest.test_case "relay" `Quick test_relay;
     Alcotest.test_case "targets" `Quick test_target;
+    Alcotest.test_case "a declared length" `Quick test_exceeds;
+    Alcotest.test_case "a request too long" `Quick test_request_size;
+    Alcotest.test_case "requests in flight" `Quick test_in_flight;
+    Alcotest.test_case "limits" `Quick test_limits;
   ]

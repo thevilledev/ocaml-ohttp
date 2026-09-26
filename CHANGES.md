@@ -43,6 +43,16 @@
   has the conversions between the types of the `http` package and those of
   `bhttp` that the two cohttp adapters share. The cohttp examples now use
   `ohttp-cohttp-lwt`.
+- Bound what a relay or a gateway holds. `Ohttp.Service.Gateway.create` and
+  the new `Ohttp.Service.Relay.create` take the longest request to read, 1 MiB
+  by default, and how many requests to handle at once, 256; a relay also takes
+  the longest answer to read from its gateway, 8 MiB. The adapters' relay
+  handlers take an `Ohttp.Service.Relay.t`, and their clients and
+  `Target.forward` a `?max_response_size`, 8 MiB by default. A message over its
+  limit is refused from its `content-length` or once its content has been
+  counted past the limit, with a 413, a 502, or `Error.Content_too_large`, and
+  a request beyond the number in flight with a 503. Rates and timeouts remain
+  the deployment's.
 - Add `Ohttp.Chunked`, an experimental implementation of chunked Oblivious HTTP
   (draft-ietf-ohai-chunked-ohttp-08): incremental senders and receivers for
   requests and responses, which take a stream in whatever slices a transport

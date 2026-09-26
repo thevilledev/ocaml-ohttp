@@ -27,6 +27,7 @@ depends: [
   "uri" {>= "4.0.0"}
   "hpke" {with-test & >= "0.4.0~rc1"}
   "eio_main" {with-test & >= "1.0"}
+  "cstruct" {with-test & >= "6.0.1"}
   "alcotest" {with-test & >= "1.7.0"}
   "odoc" {with-doc}
 ]

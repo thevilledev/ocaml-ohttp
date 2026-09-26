@@ -62,5 +62,5 @@ module Gateway : sig
       [https://iana.org/assignments/http-problem-types#ohttp-key] (Section 5.3),
       since each of them is what a client with an outdated key configuration
       runs into. The three are not told apart. Other invalid requests get a 400,
-      405, or 415, and a failure that is not the client's doing gets a 500. *)
+      405, 413, or 415, and a failure not of the client's doing a 500. *)
 end

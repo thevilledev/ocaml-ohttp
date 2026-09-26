@@ -67,6 +67,7 @@ module Gateway = struct
     | Error.Method_not_allowed _ ->
         { (plain 405) with headers = [ ("allow", "POST") ] }
     | Error.Unsupported_media_type _ -> plain 415
+    | Error.Content_too_large _ -> plain 413
     | Error.Truncated_message _ | Error.Chunk_too_large _ | Error.Bhttp _
     | Error.Continue_expectation ->
         plain 400

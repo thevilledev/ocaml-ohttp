@@ -115,12 +115,15 @@ incrementally.
   machines needs to share it.
 - **The relay.** The adapters' relay handlers pass on the content and its type
   and nothing else. A deployed relay has the other duties of Section 6.2 too,
-  such as limits and traffic analysis defences.
+  such as limiting the rate of each client, and traffic analysis defences.
 - **Targets.** A gateway decides which targets it serves. The adapters forward
   only to the authorities that the gateway lists, and refuse the rest with a
   sealed 403.
-- **Limits.** The adapters read each message in full and do not limit its
-  size, or the rate of requests.
+- **Limits.** The adapters read each message in full, and bound the length of
+  what they read and the number of requests that a relay or a gateway handles
+  at once, with defaults of 1 MiB for a request, 8 MiB for a response, and 256
+  requests (see [HTTP libraries](http-libraries.md#limits)). Rate limits and
+  timeouts are the deployment's.
 - **Padding.** Available on request, never applied by default.
 
 ## Verification

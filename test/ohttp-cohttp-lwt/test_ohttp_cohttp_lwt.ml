@@ -46,8 +46,16 @@ let key =
 let target_port = free_port ()
 let gateway_port = free_port ()
 let local_gateway_port = free_port ()
+let strict_gateway_port = free_port ()
 let relay_port = free_port ()
+let strict_relay_port = free_port ()
 let relay = local relay_port "/"
+let strict_relay = local strict_relay_port "/"
+
+(* A request to the strict gateway for this path waits until [release] is woken,
+   after waking [entered]: it holds the gateway's one place. *)
+let entered, entered_u = Lwt.wait ()
+let release, release_u = Lwt.wait ()
 
 let () =
   let service =
@@ -66,7 +74,31 @@ let () =
             ]));
   serve local_gateway_port
     (O.Gateway.handler service (O.Target.of_handler target));
-  serve relay_port (C.Relay.handler ~gateway:(local gateway_port "/gateway"))
+  serve relay_port
+    (C.Relay.handler
+       (Ohttp.Service.Relay.create ())
+       ~gateway:(local gateway_port "/gateway"));
+  (* Room for a short request, one at a time, and a short answer. *)
+  let strict =
+    Ohttp.Service.Gateway.create ~rng ~max_request_size:256 ~max_in_flight:1
+      (Result.get_ok (Ohttp.Gateway.create [ key ]))
+  in
+  let forward =
+    C.Target.forward ~max_response_size:16
+      ~targets:[ ("target.example", local target_port "") ]
+  in
+  serve strict_gateway_port
+    (O.Gateway.handler strict (fun (request : Bhttp.Request.t) ->
+         if request.path = "/wait" then (
+           if Lwt.is_sleeping entered then Lwt.wakeup_later entered_u ();
+           let* () = release in
+           Lwt.return (Bhttp.Response.make ~status:200 ()))
+         else forward request));
+  serve strict_relay_port
+    (C.Relay.handler
+       (Ohttp.Service.Relay.create ~max_request_size:256 ~max_response_size:16
+          ())
+       ~gateway:(local gateway_port "/gateway"))
 
 (* The servers start with the first test; give them a moment to listen. *)
 let rec retry n f =
@@ -156,6 +188,79 @@ let test_refusals () =
     "elsewhere on the gateway" 404
     (status_of `GET (local gateway_port "/other"))
 
+let strict_gateway = local strict_gateway_port "/gateway"
+
+(* The status of a POST of [chunks] as an Encapsulated Request, sent without a
+   content-length, so that only counting can find it too long. *)
+let post_chunks uri chunks =
+  run (fun () ->
+      let* response, body =
+        Cohttp_lwt_unix.Client.post
+          ~headers:
+            (Http.Header.of_list Ohttp.Http_binding.Client.request_headers)
+          ~body:(Body.of_stream (Lwt_stream.of_list chunks))
+          uri
+      in
+      let+ () = Body.drain_body body in
+      Http.Status.to_int response.status)
+
+let unexpected status = Error (Ohttp.Error.Unexpected_status status)
+
+let test_request_size () =
+  let long = post ~content:(String.make 1000 'x') () in
+  Alcotest.(check bool)
+    "a gateway refuses it in the clear" true
+    (call ~relay:strict_gateway long = unexpected 413);
+  Alcotest.(check bool)
+    "a relay refuses it" true
+    (call ~relay:strict_relay long = unexpected 413);
+  Alcotest.(check int)
+    "a gateway counts what is not declared" 413
+    (post_chunks strict_gateway (List.init 10 (fun _ -> String.make 100 'x')));
+  Alcotest.(check int)
+    "a relay too" 413
+    (post_chunks strict_relay (List.init 10 (fun _ -> String.make 100 'x')));
+  Alcotest.(check int)
+    "what fits is read" 400
+    (post_chunks strict_gateway [ String.make 200 'x'; String.make 56 'x' ]);
+  Alcotest.(check int)
+    "one byte more is not" 413
+    (post_chunks strict_gateway [ String.make 200 'x'; String.make 57 'x' ])
+
+let test_response_size () =
+  Alcotest.(check bool)
+    "a client refuses a long answer" true
+    (run (fun () ->
+         C.Client.call ~max_response_size:16 ~rng ~relay config (post ()))
+    = Error (Ohttp.Error.Content_too_large 16));
+  Alcotest.(check int)
+    "a gateway seals a 502 for a target's long answer" 502
+    (status (call ~relay:strict_gateway (post ())));
+  Alcotest.(check bool)
+    "a relay answers a gateway's long answer with a 502" true
+    (call ~relay:strict_relay (post ()) = unexpected 502)
+
+(* Not retried: a second request that is let in waits for good. *)
+let test_in_flight () =
+  Lwt_main.run
+    (let first =
+       C.Client.call ~rng ~relay:strict_gateway config (post ~path:"/wait" ())
+     in
+     let* () = entered in
+     let* second =
+       Lwt_unix.with_timeout 5. (fun () ->
+           C.Client.call ~rng ~relay:strict_gateway config
+             (post ~path:"/wait" ()))
+     in
+     Alcotest.(check bool) "one too many" true (second = unexpected 503);
+     Lwt.wakeup_later release_u ();
+     let* first = first in
+     Alcotest.(check int) "the first is answered" 200 (status first);
+     let+ third =
+       C.Client.call ~rng ~relay:strict_gateway config (post ~path:"/wait" ())
+     in
+     Alcotest.(check int) "and its place is free again" 200 (status third))
+
 let () =
   Alcotest.run "ohttp-cohttp-lwt"
     [
@@ -169,5 +274,11 @@ let () =
           Alcotest.test_case "a target in the same process" `Quick
             test_in_process;
           Alcotest.test_case "refusals" `Quick test_refusals;
+        ] );
+      ( "limits",
+        [
+          Alcotest.test_case "request size" `Quick test_request_size;
+          Alcotest.test_case "response size" `Quick test_response_size;
+          Alcotest.test_case "requests in flight" `Quick test_in_flight;
         ] );
     ]

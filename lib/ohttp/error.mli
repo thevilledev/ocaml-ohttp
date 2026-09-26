@@ -23,6 +23,9 @@ type t =
   | Chunk_too_large of int
       (** A chunk of a chunked message is larger than the receiver accepts, or
           than the sender is set to produce. The argument is its length. *)
+  | Content_too_large of int
+      (** A message is longer than its reader accepts. The argument is the
+          limit, in bytes. *)
   | Bhttp of Bhttp.Error.t
       (** What was encapsulated is not a valid Binary HTTP message. *)
   | Continue_expectation

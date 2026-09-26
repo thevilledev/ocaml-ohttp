@@ -223,6 +223,7 @@ let test_error_responses () =
     (Http_binding.Gateway.error_response (Error.Method_not_allowed "GET"))
       .headers;
   Alcotest.(check int) "type" 415 (status (Error.Unsupported_media_type None));
+  Alcotest.(check int) "too long" 413 (status (Error.Content_too_large 100));
   Alcotest.(check int)
     "not the client's doing" 500
     (status (Error.Hpke Hpke.Error.Message_limit_reached));

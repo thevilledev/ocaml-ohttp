@@ -40,9 +40,14 @@ let gateway ~rng ~replay ~targets gateway =
     (Ohttp_client.Target.forward ~targets)
 
 (* Relay: passes the content on and nothing else, so that the gateway learns
-   nothing about the client. It cannot read what it carries. *)
+   nothing about the client. It cannot read what it carries. Like the gateway,
+   it refuses requests beyond the default limits of Ohttp.Service on their
+   length and on how many it forwards at once. *)
 
-let relay ~gateway_uri = Ohttp_client.Relay.handler ~gateway:gateway_uri
+let relay ~gateway_uri =
+  Ohttp_client.Relay.handler
+    (Ohttp.Service.Relay.create ())
+    ~gateway:gateway_uri
 
 (* Client *)
 
