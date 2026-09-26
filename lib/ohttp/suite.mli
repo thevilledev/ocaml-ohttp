@@ -25,8 +25,8 @@ val default_symmetric : symmetric list
 
 val all_kems : Hpke.Kem.id list
 (** Every KEM of the [hpke] package: the Diffie-Hellman KEMs of RFC 9180, then
-    the post-quantum/traditional hybrids and ML-KEM of [draft-ietf-hpke-pq].
-    Of the post-quantum ones, MLKEM768-X25519 (X-Wing) is the one to use unless
+    the post-quantum/traditional hybrids and ML-KEM of [draft-ietf-hpke-pq]. Of
+    the post-quantum ones, MLKEM768-X25519 (X-Wing) is the one to use unless
     there is a reason to choose another: a hybrid stays as strong as its
     elliptic-curve half if ML-KEM falls. *)
 

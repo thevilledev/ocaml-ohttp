@@ -161,5 +161,4 @@ let () =
             (Option.get (Replay.Date.parse (Replay.Date.format t)))
       | exception e ->
           fail
-            (Printf.sprintf "Replay.Date.parse raised %s"
-               (Printexc.to_string e)))
+            (Printf.sprintf "Replay.Date.parse raised %s" (Printexc.to_string e)))

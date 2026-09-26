@@ -365,8 +365,8 @@ let config_cases g count (peer : Peer.t) =
                   end)
         done)
       (suites peer);
-  (* The same, against the derivation of RFC 9180 and draft-ietf-hpke-pq,
-     once for each KEM. *)
+  (* The same, against the derivation of RFC 9180 and draft-ietf-hpke-pq, once
+     for each KEM. *)
   let category = "config/derive-draft" in
   if selected category then
     List.iter

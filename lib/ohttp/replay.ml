@@ -17,8 +17,18 @@ module Date = struct
 
   let months =
     [|
-      "Jan"; "Feb"; "Mar"; "Apr"; "May"; "Jun"; "Jul"; "Aug"; "Sep"; "Oct";
-      "Nov"; "Dec";
+      "Jan";
+      "Feb";
+      "Mar";
+      "Apr";
+      "May";
+      "Jun";
+      "Jul";
+      "Aug";
+      "Sep";
+      "Oct";
+      "Nov";
+      "Dec";
     |]
 
   let index names name =
@@ -112,7 +122,9 @@ module Date = struct
     else None
 
   (* 0000-01-01T00:00:00Z and 9999-12-31T23:59:59Z *)
-  let earliest = -62167219200. and latest = 253402300799.
+  let earliest = -62167219200.
+  and latest = 253402300799.
+
   let in_range t = t >= earliest && t < latest +. 1.
 
   (* A two-digit year more than 50 years ahead of [now] belongs to the previous
@@ -146,7 +158,7 @@ module Date = struct
     then make ~weekday ~year:(full_year ?now yy) ~month ~day ~seconds
     else None
 
-  (* "Sun Nov  6 08:49:37 1994" *)
+  (* asctime: "Sun Nov 6 08:49:37 1994", its day padded with a space *)
   let asctime_date s =
     let* weekday = index short_days (sub s 0 3) in
     let* month = index months (sub s 4 3) in
@@ -294,9 +306,9 @@ let date_of_problem (response : Bhttp.Response.t) =
   let is_problem =
     response.status = 400
     && (match Bhttp.Field.get "content-type" response.headers with
-       | Some content_type ->
-           Media_type.matches Media_type.problem_json content_type
-       | None -> false)
+      | Some content_type ->
+          Media_type.matches Media_type.problem_json content_type
+      | None -> false)
     && contains response.content ("\"" ^ date_problem_type ^ "\"")
   in
   if is_problem then date_of response.headers else None

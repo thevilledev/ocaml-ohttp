@@ -57,9 +57,9 @@ let ask_target ~targets (request : Bhttp.Request.t) =
           Lwt.return (Bhttp.Response.make ~status:504 ()))
 
 (* Replay: the gateway remembers the encapsulated keys of the requests it
-   served, and refuses one whose date is too far from its clock, so that it
-   need not remember them for long (RFC 9458 Section 6.5). Only requests that
-   are not idempotent need this; the example checks every request. *)
+   served, and refuses one whose date is too far from its clock, so that it need
+   not remember them for long (RFC 9458 Section 6.5). Only requests that are not
+   idempotent need this; the example checks every request. *)
 
 let unreplayed ~replay context request =
   let now = Unix.gettimeofday () in
@@ -173,8 +173,8 @@ let post ~relay_uri context encapsulated =
        ~headers:(Http.Header.to_list response.headers))
     (fun () -> Ohttp.Http_message.decapsulate_response context content)
 
-(* The request goes with the client's date. If the gateway finds it too far
-   from its own, it says so with its time, and the request is sent once more,
+(* The request goes with the client's date. If the gateway finds it too far from
+   its own, it says so with its time, and the request is sent once more,
    encapsulated anew, with a date that its clock would give. [clock] is the
    client's clock, which a test can set wrong. *)
 let call ~rng ?(clock = Unix.gettimeofday) ~relay_uri config

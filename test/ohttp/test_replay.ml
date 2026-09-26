@@ -33,7 +33,8 @@ let test_date_formats () =
     (Invalid_argument "Replay.Date.format: outside the years 0 to 9999")
     (fun () -> ignore (Replay.Date.format 253402300800.));
   (* Every day for two centuries survives formatting and parsing. *)
-  let start = -2208988800. (* 1900-01-01 *) in
+  (* 1900-01-01 *)
+  let start = -2208988800. in
   for day = 0 to 73048 do
     let t =
       start +. (float_of_int day *. 86400.) +. float_of_int (day mod 86400)
@@ -115,9 +116,7 @@ let test_cache () =
   Alcotest.(check bool) "another" true (add 2. "b" = `New);
   Alcotest.(check bool) "full" true (add 3. "c" = `Full);
   Alcotest.(check int) "a refusal adds nothing" 2 (Replay.Cache.length cache);
-  Alcotest.(check bool)
-    "just before it expires" true
-    (add 9.999 "a" = `Replayed);
+  Alcotest.(check bool) "just before it expires" true (add 9.999 "a" = `Replayed);
   Alcotest.(check bool) "room once the first expires" true (add 10. "c" = `New);
   Alcotest.(check bool) "which is forgotten" true (add 10. "a" = `Full);
   Alcotest.(check bool) "until the second expires" true (add 12. "a" = `New);
@@ -177,14 +176,13 @@ let test_check () =
     (Replay.check lenient ~now ~enc:"b" (request ()))
 
 (* The client's clock is an hour behind. The gateway answers through the
-   encapsulation with its own time, and the client retries with a corrected
-   date and a new encapsulation. *)
+   encapsulation with its own time, and the client retries with a corrected date
+   and a new encapsulation. *)
 let test_date_problem () =
   let rng = rng () in
   let key =
     ok
-      (Gateway.Key.derive ~key_id:1 Hpke.Kem.X25519
-         ~ikm:(String.make 32 '\x07'))
+      (Gateway.Key.derive ~key_id:1 Hpke.Kem.X25519 ~ikm:(String.make 32 '\x07'))
   in
   let gateway = ok (Gateway.create [ key ]) in
   let config = Gateway.Key.config key in
@@ -228,8 +226,7 @@ let test_date_problem () =
     [
       ("a replay", Replay.rejection_response ~now:gateway_now Replay.Replayed);
       ("a full cache", Replay.rejection_response ~now:gateway_now Replay.Full);
-      ( "another problem",
-        { first with content = {|{"type":"about:blank"}|} } );
+      ("another problem", { first with content = {|{"type":"about:blank"}|} });
       ("another status", { first with status = 403 });
       ( "no date",
         {
@@ -242,8 +239,7 @@ let test_encapsulated_key () =
   let rng = rng () in
   let key =
     ok
-      (Gateway.Key.derive ~key_id:1 Hpke.Kem.X25519
-         ~ikm:(String.make 32 '\x08'))
+      (Gateway.Key.derive ~key_id:1 Hpke.Kem.X25519 ~ikm:(String.make 32 '\x08'))
   in
   let gateway = ok (Gateway.create [ key ]) in
   let encapsulated, _ =

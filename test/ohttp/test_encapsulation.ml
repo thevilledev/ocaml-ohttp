@@ -365,8 +365,8 @@ let test_invalid_key () =
   | Error e -> Alcotest.failf "unexpected error: %a" Error.pp e
 
 let test_invalid_hybrid_key () =
-  (* An X-Wing key whose X25519 half is of low order is read, as for X25519,
-     and refused when it is used. *)
+  (* An X-Wing key whose X25519 half is of low order is read, as for X25519, and
+     refused when it is used. *)
   let valid =
     Hpke.Public_key.to_bytes
       (Key_config.public_key
@@ -392,8 +392,7 @@ let tests =
     Alcotest.test_case "gateway keys" `Quick test_gateway_keys;
     Alcotest.test_case "labels" `Quick test_labels;
     Alcotest.test_case "invalid requests" `Quick test_invalid_requests;
-    Alcotest.test_case "post-quantum requests" `Quick
-      test_post_quantum_requests;
+    Alcotest.test_case "post-quantum requests" `Quick test_post_quantum_requests;
     Alcotest.test_case "invalid responses" `Quick test_invalid_responses;
     Alcotest.test_case "invalid public key" `Quick test_invalid_key;
     Alcotest.test_case "invalid hybrid public key" `Quick

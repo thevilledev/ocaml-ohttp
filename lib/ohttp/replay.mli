@@ -17,8 +17,8 @@
 (** HTTP dates (RFC 9110 Section 5.6.7). *)
 module Date : sig
   val parse : ?now:float -> string -> float option
-  (** [parse s] is the time that [s] names, in seconds since the epoch, if it
-      is a date in one of the three formats that a recipient must accept: the
+  (** [parse s] is the time that [s] names, in seconds since the epoch, if it is
+      a date in one of the three formats that a recipient must accept: the
       IMF-fixdate ["Sun, 06 Nov 1994 08:49:37 GMT"], and the obsolete RFC 850
       ["Sunday, 06-Nov-94 08:49:37 GMT"] and asctime
       ["Sun Nov  6 08:49:37 1994"]. The day of the week must be the right one.
@@ -53,25 +53,25 @@ module Cache : sig
   val add : t -> now:float -> string -> [ `New | `Replayed | `Full ]
   (** [add cache ~now key] forgets what has expired, then remembers [key] and
       returns [`New], unless it is already remembered ([`Replayed]), or the
-      cache holds [capacity] keys ([`Full]). The two refusals leave the cache
-      as it was. A full cache must be treated as a refusal: letting a request
+      cache holds [capacity] keys ([`Full]). The two refusals leave the cache as
+      it was. A full cache must be treated as a refusal: letting a request
       through without remembering it would let it be replayed.
 
       Only a digest of [key] is kept, so that the cache does not grow with the
       KEM: the encapsulated key of X-Wing is 1120 bytes. *)
 
   val length : t -> int
-  (** How many keys are remembered, including those that have expired since
-      the last {!add}. *)
+  (** How many keys are remembered, including those that have expired since the
+      last {!add}. *)
 end
 
 type t
 (** What a gateway remembers: a {!Cache} and the date policy that bounds it. *)
 
 val create : ?require_date:bool -> tolerance:float -> capacity:int -> unit -> t
-(** [create ~tolerance ~capacity ()] accepts dates within [tolerance] seconds
-    of the gateway's clock, and remembers the keys of up to [capacity] requests
-    for [2 *. tolerance] seconds.
+(** [create ~tolerance ~capacity ()] accepts dates within [tolerance] seconds of
+    the gateway's clock, and remembers the keys of up to [capacity] requests for
+    [2 *. tolerance] seconds.
 
     [require_date] is [true] by default: a request without a valid [date] field
     is refused. If it is [false], such a request is accepted and its key
@@ -89,9 +89,9 @@ type rejection =
 
 val check :
   t -> now:float -> enc:string -> Bhttp.Request.t -> (unit, rejection) result
-(** [check t ~now ~enc request] decides whether to serve a request that has
-    been decapsulated, and remembers its encapsulated key [enc] if so. [enc]
-    is {!Gateway.encapsulated_key} of the request's context, or
+(** [check t ~now ~enc request] decides whether to serve a request that has been
+    decapsulated, and remembers its encapsulated key [enc] if so. [enc] is
+    {!Gateway.encapsulated_key} of the request's context, or
     {!Chunked.Gateway.encapsulated_key}.
 
     Call it only after decapsulation succeeds: a key that did not decrypt a
@@ -103,8 +103,8 @@ val rejection_response : now:float -> rejection -> Bhttp.Response.t
 (** The response to encapsulate for a rejected request:
     - for a missing or skewed date, a 400 with the problem type
       [https://iana.org/assignments/http-problem-types#date] and the gateway's
-      [date] field, from which the client can correct its clock and retry
-      (RFC 9458 Section 6.5);
+      [date] field, from which the client can correct its clock and retry (RFC
+      9458 Section 6.5);
     - for a replay, a 400;
     - for a full cache, a 503. *)
 

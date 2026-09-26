@@ -242,8 +242,7 @@ let test_post_quantum () =
   (* An ML-KEM encapsulation key whose coefficients are 4095, beyond the
      modulus: FIPS 203 has it rejected, and with it the whole list. *)
   let beyond_modulus =
-    raw ~key_id:8 ~kem_id:0x0041
-      ~public_key:(String.make 1184 '\xff')
+    raw ~key_id:8 ~kem_id:0x0041 ~public_key:(String.make 1184 '\xff')
       [ (1, 1) ]
   in
   Alcotest.(check bool)
