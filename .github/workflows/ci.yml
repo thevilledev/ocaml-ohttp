@@ -85,8 +85,10 @@ jobs:
       - run: opam pin add hpke.0.2.0 git+https://github.com/thevilledev/ocaml-hpke.git#main --no-action
       - run: opam install . --deps-only --with-test
       - run: opam exec -- dune build --profile fuzz fuzz/fuzz_bhttp.exe fuzz/fuzz_ohttp.exe
-      - run: opam exec -- _build/default/fuzz/fuzz_bhttp.exe --repeat 2000 --seed 9292
-      - run: opam exec -- _build/default/fuzz/fuzz_ohttp.exe --repeat 2000 --seed 9458
+      # --repeat counts runs of each test. doc/development.md has the longer
+      # run for changes to a decoder.
+      - run: opam exec -- _build/default/fuzz/fuzz_bhttp.exe --repeat 300 --seed 9292
+      - run: opam exec -- _build/default/fuzz/fuzz_ohttp.exe --repeat 300 --seed 9458
 
   # The examples need an HTTP library, which the packages do not depend on.
   # Without one they build as stubs that explain themselves, so ask the

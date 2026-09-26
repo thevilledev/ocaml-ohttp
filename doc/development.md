@@ -89,7 +89,9 @@ opam exec -- _build/default/fuzz/fuzz_ohttp.exe --repeat 2000 --seed 9458
 The Crowbar targets cover everything that reads a peer's bytes. Binary HTTP is
 not canonical, so its target checks that a decoded message survives
 re-encoding, not that the bytes come back. The executables are behind the
-`fuzz` profile, so a normal build does not need Crowbar.
+`fuzz` profile, so a normal build does not need Crowbar. CI runs the same seeds
+with `--repeat 300` to stay quick; run the longer version above when changing a
+decoder.
 
 ### Formatting
 
