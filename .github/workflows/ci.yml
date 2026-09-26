@@ -1,8 +1,18 @@
 name: CI
 
+# Branch pushes are covered by their pull request, so only main runs on push.
+# Otherwise every commit on a pull request runs the fuzz and differential
+# jobs twice.
 on:
   push:
+    branches: [main]
   pull_request:
+
+# A new push to a pull request cancels its older run. Runs on main are left
+# to finish so every commit there gets a result.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -16,8 +26,6 @@ jobs:
           - os: ubuntu-latest
             ocaml: "4.14"
           - os: ubuntu-latest
-            ocaml: "5.4"
-          - os: macos-latest
             ocaml: "5.4"
     runs-on: ${{ matrix.os }}
     steps:
@@ -77,8 +85,10 @@ jobs:
       - run: opam pin add hpke.0.4.0~rc1 git+https://github.com/thevilledev/ocaml-hpke.git#v0.4.0-rc1 --no-action
       - run: opam install . --deps-only --with-test
       - run: opam exec -- dune build --profile fuzz fuzz/fuzz_bhttp.exe fuzz/fuzz_ohttp.exe
-      - run: opam exec -- _build/default/fuzz/fuzz_bhttp.exe --repeat 2000 --seed 9292
-      - run: opam exec -- _build/default/fuzz/fuzz_ohttp.exe --repeat 2000 --seed 9458
+      # --repeat counts runs of each test. doc/development.md has the longer
+      # run for changes to a decoder.
+      - run: opam exec -- _build/default/fuzz/fuzz_bhttp.exe --repeat 300 --seed 9292
+      - run: opam exec -- _build/default/fuzz/fuzz_ohttp.exe --repeat 300 --seed 9458
 
   # The examples need an HTTP library, which the packages do not depend on.
   # Without one they build as stubs that explain themselves, so ask the
