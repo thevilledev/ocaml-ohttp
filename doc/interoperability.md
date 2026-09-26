@@ -9,7 +9,7 @@ run against two other implementations, by the two authors of RFC 9458:
 
 | Peer | Implementation | Version |
 | --- | --- | --- |
-| Go | [chris-wood/ohttp-go](https://github.com/chris-wood/ohttp-go), which Cloudflare's gateway builds on | `v0.0.0-20260205154755-776f22a178b8` |
+| Go | [chris-wood/ohttp-go](https://github.com/chris-wood/ohttp-go), which Cloudflare's gateway builds on | `v0.0.0-20260205154755-776f22a178b8`, over CIRCL `v1.6.5` |
 | Rust | [martinthomson/ohttp](https://github.com/martinthomson/ohttp), the `ohttp` and `bhttp` crates | `0.8.0` |
 
 No public relay or gateway can be used without an agreement with its operator,
@@ -21,14 +21,17 @@ peers sealed is recorded, and `dune runtest` replays it without them.
 
 ## Results
 
-From `tools/differential/run.sh --count 16 --seed 9458`, the run that recorded
-the corpus in `test/vectors/differential`:
+From the runs of `tools/differential/run.sh --count 16 --seed 9458` that
+recorded the corpus in `test/vectors/differential`. The Go column is the later
+run, which added X448 and X-Wing; the Rust peer provides neither, and its
+recording stands:
 
 | | Go | Rust |
 | --- | --- | --- |
-| Key configuration derived from a seed, byte for byte | 144 of 144, over all 36 suites | 16 of 16, over the 4 suites it provides |
-| Exchanges, this library as the client | 576 of 576 | 64 of 64 |
-| Exchanges, this library as the gateway | 576 of 576 | 64 of 64 |
+| Key configuration derived from a seed, byte for byte | 216 of 216, over the 54 suites it provides | 16 of 16, over the 4 suites it provides |
+| The same, with the derivation of draft-ietf-hpke-pq | 5 of 6 KEMs: X-Wing differs, see below | |
+| Exchanges, this library as the client | 864 of 864 | 64 of 64 |
+| Exchanges, this library as the gateway | 864 of 864 | 64 of 64 |
 | Tampered requests and responses, unknown keys | refused by both sides | refused by both sides |
 | `application/ohttp-keys` with several keys and suites | no list parser | read alike |
 | Chunked exchanges, this library as the client | not provided | 32 of 32 |
@@ -38,8 +41,9 @@ the corpus in `test/vectors/differential`:
 | Messages that the peer encoded | 64 of 64 | 88 of 88 |
 
 The Rust crate's own HPKE backend provides X25519 and P-256 with HKDF-SHA256
-and AES-128-GCM or ChaCha20Poly1305; ohttp-go provides everything that this
-library does, through CIRCL.
+and AES-128-GCM or ChaCha20Poly1305. ohttp-go provides, through CIRCL, the
+five Diffie-Hellman KEMs and X-Wing, with every KDF and AEAD: 54 of the 99
+suites. Neither provides the pure ML-KEM KEMs or the other two hybrids.
 
 ## Known differences
 
@@ -62,6 +66,13 @@ RFCs.
   keeps the two apart, "as is required for ensuring that the request is
   reproduced accurately".
 - **It does not check padding**, which Section 3.8 permits.
+- **It derives X-Wing keys from a seed in its own way.** CIRCL hashes the seed
+  with SHAKE256 to the 32 bytes of an X-Wing private key. draft-ietf-hpke-pq-05
+  has DeriveKeyPair use LabeledDerive, with a label and the suite identifier,
+  which is what `Hpke.derive_key_pair` does and what the draft's vectors
+  check. The same seed therefore gives two different key pairs. Keys
+  themselves interoperate: the driver derives X-Wing keys as CIRCL does for
+  the exchanges, and checks the difference in `config/derive-draft`.
 - It has no indeterminate-length framing, informational responses, or
   `application/ohttp-keys` parser, keeps one value for a repeated field name,
   drops the query of a request that it encodes, and panics on a request with

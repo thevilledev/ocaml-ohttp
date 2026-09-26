@@ -36,6 +36,7 @@ sorted list.
 | Category | What is compared |
 | --- | --- |
 | `config/derive` | the key configuration derived from a seed, byte for byte |
+| `config/derive-draft` | the same, once for each KEM, against the derivation of RFC 9180 and draft-ietf-hpke-pq rather than the peer's own |
 | `config/parse`, `config/list`, `config/parse-invalid` | the peer reads our configurations, and refuses malformed ones |
 | `ohttp/ocaml-client`, `ohttp/peer-client` | a whole exchange in each direction, for every suite in common |
 | `ohttp/tampered-request`, `ohttp/tampered-response`, `ohttp/unknown-key-id` | both sides refuse |

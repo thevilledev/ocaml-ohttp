@@ -10,8 +10,20 @@
 - Add `ohttp`, an implementation of Oblivious HTTP (RFC 9458): key
   configurations in both of their encodings, and request and response
   encapsulation for clients and gateways over every KEM, KDF, and AEAD of the
-  `hpke` package. A gateway accepts only what its keys advertise, and reports
-  everything that a peer can cause as one error.
+  `hpke` package: 99 suites. A gateway accepts only what its keys advertise,
+  and reports everything that a peer can cause as one error.
+- Provide the post-quantum KEMs of draft-ietf-hpke-pq-05 through `hpke`:
+  MLKEM768-X25519 (X-Wing), MLKEM768-P256, MLKEM1024-P384, and ML-KEM-512, 768,
+  and 1024, beside the Diffie-Hellman KEMs, X448 among them. X-Wing is the one
+  to choose. The one-stage SHAKE KDFs of the same draft are read in a key
+  configuration but never chosen, since RFC 9458 derives the response keys
+  with `Extract` and `Expand`.
+- Add `Ohttp.Replay`, the defences of RFC 9458 Section 6.5 without I/O: a
+  bounded cache of the encapsulated keys of recent requests, the check of a
+  request's `date` field in the three formats of RFC 9110, and the `date`
+  problem type, through which a client learns the gateway's time and retries.
+  `Gateway.encapsulated_key` and `Chunked.Gateway.encapsulated_key` give the
+  key to remember. The cohttp examples apply both sides.
 - Add `Ohttp.Http_message` and `Ohttp.Http_binding`: exchanges of Binary HTTP
   messages, and the fields, checks, and error responses of RFC 9458 Section 5,
   without I/O. Examples over cohttp-lwt-unix show a client, a relay, a gateway,
@@ -25,9 +37,12 @@
   draft's Appendix A byte for byte, in both directions, from values that a
   script extracts from the pinned text of each document.
 - Validate both packages against chris-wood/ohttp-go and martinthomson/ohttp
-  with a differential harness, in both roles and for every suite in common, and
-  replay what they produced in the test suites.
-- Require `hpke` 0.2.0, for the suite's KDF and AEAD and for the deterministic
-  senders of `hpke.for_testing`.
+  with a differential harness, in both roles and for every suite in common,
+  X448 and X-Wing with ohttp-go included, and replay what they produced in the
+  test suites.
+- Require `hpke` 0.4.0, for the post-quantum KEMs, the suite's KDF and AEAD,
+  and the deterministic senders of `hpke.for_testing`; until it is released,
+  its release candidate `0.4.0~rc1`. Like `hpke` since 0.3.0, `ohttp` needs a
+  64-bit OCaml. `bhttp` still has no dependencies.
 - Remain an unaudited, non-production release intended for interoperability
   review.

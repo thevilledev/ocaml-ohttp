@@ -308,6 +308,7 @@ module Gateway = struct
     }
 
   let receiver t = t.receiver
+  let encapsulated_key t = Option.map (fun { enc; _ } -> enc) !(t.started)
 
   let response ~rng ?(max_chunk_size = max_chunk_size) t =
     if t.responded then invalid_arg "Chunked.Gateway.response: called twice";

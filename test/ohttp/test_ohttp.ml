@@ -7,6 +7,7 @@ let () =
       ("encapsulation", Test_encapsulation.tests);
       ("http binding", Test_http_binding.tests);
       ("chunked", Test_chunked.tests);
+      ("replay", Test_replay.tests);
       ("upstream vectors", Test_upstream_vectors.tests);
       ("differential", Test_differential.tests);
       ("properties", Test_properties.tests);

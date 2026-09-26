@@ -24,12 +24,14 @@ let key_of json =
         | _ -> Alcotest.fail "symmetric: expected pairs")
   in
   let seed = hex_field json "seed" in
+  let private_key, _ =
+    hpke_ok (Ohttp_test_support.Peer_key.derive_key_pair kem ~ikm:seed)
+  in
   let key =
     ok
-      (Gateway.Key.derive ~key_id:(int_field json "key_id") ~symmetric kem
-         ~ikm:seed)
+      (Gateway.Key.of_private_key ~key_id:(int_field json "key_id") ~symmetric
+         private_key)
   in
-  let private_key, _ = hpke_ok (Hpke.derive_key_pair kem ~ikm:seed) in
   (key, private_key)
 
 let has_prefix prefix s =

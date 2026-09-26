@@ -13,12 +13,12 @@ application.
 Requirements: OCaml **4.14 or later**, opam with an active switch, and Dune
 **3.12 or later**. opam installs Dune and the dependencies as needed.
 
-`ohttp` needs `hpke` 0.2.0, for the KDF and AEAD of an HPKE suite and for the
-deterministic senders that its tests use. Until that release is on opam, pin
-it first:
+`ohttp` needs `hpke` 0.4.0, for the post-quantum and hybrid KEMs, and runs
+only on 64-bit OCaml, as `hpke` does. Until 0.4.0 is on opam, pin its release
+candidate first:
 
 ```sh
-opam pin add hpke.0.2.0 git+https://github.com/thevilledev/ocaml-hpke.git#main --no-action
+opam pin add hpke.0.4.0~rc1 git+https://github.com/thevilledev/ocaml-hpke.git#v0.4.0-rc1 --no-action
 ```
 
 ### From source
@@ -72,6 +72,8 @@ opam exec -- dune build @e2e
 ok    the client fetched the key configuration
 ok    the target answered through the relay and the gateway
 ok    the gateway refuses other targets, inside the encapsulation
+ok    a replayed request is refused
+ok    a client with a wrong clock corrects it and retries
 ok    an unknown key is refused in the clear, with a 400
 ```
 
@@ -153,6 +155,40 @@ The gateway's keys come from `Ohttp.Gateway.Key.generate`, and
 `Ohttp.Gateway.encoded_key_configs` is what it serves as
 `application/ohttp-keys`. A gateway decides which targets it forwards to; one
 that forwards anywhere is an open proxy.
+
+For a post-quantum key, pass `Hpke.Kem.Mlkem768_x25519` (X-Wing) to
+`Gateway.Key.generate`. Clients choose among the configurations that a gateway
+serves, so a gateway can offer an X-Wing key beside an X25519 one while
+clients move over. See [protocol support](protocol-support.md#post-quantum-kems).
+
+### Against replay
+
+Anyone who sees an Encapsulated Request can send it again, and the gateway
+cannot tell the copy apart (RFC 9458 Section 6.5). A gateway that serves
+requests that are not idempotent checks each one with `Ohttp.Replay`, once the
+encapsulation is off:
+
+```ocaml
+let replay = Ohttp.Replay.create ~tolerance:60. ~capacity:100_000 ()
+
+let serve ~ask_target context request =
+  let now = Unix.gettimeofday () in
+  match
+    Ohttp.Replay.check replay ~now
+      ~enc:(Ohttp.Gateway.encapsulated_key context)
+      request
+  with
+  | Ok () -> ask_target request
+  | Error rejection -> Ohttp.Replay.rejection_response ~now rejection
+```
+
+It refuses a request whose `date` field is more than `tolerance` seconds from
+the gateway's clock, and one whose encapsulated key it has seen, which it
+remembers for twice the tolerance. The client adds the field with
+`Ohttp.Replay.date_field`. If its clock is wrong, the gateway says so with its
+own time, which `Ohttp.Replay.date_of_problem` reads, and the client retries
+once with a corrected date and a new encapsulation. The cohttp examples do
+both.
 
 ## Two encodings of a key configuration
 

@@ -8,12 +8,12 @@
 ```sh
 git clone https://github.com/thevilledev/ocaml-ohttp.git
 cd ocaml-ohttp
-opam pin add hpke.0.2.0 git+https://github.com/thevilledev/ocaml-hpke.git#main --no-action
+opam pin add hpke.0.4.0~rc1 git+https://github.com/thevilledev/ocaml-hpke.git#v0.4.0-rc1 --no-action
 opam install . --deps-only --with-test --with-doc
 opam install ocamlformat.0.29.0
 ```
 
-The pin goes away once `hpke` 0.2.0 is on opam. `cohttp-lwt-unix` is optional:
+The pin goes away once `hpke` 0.4.0 is on opam. `cohttp-lwt-unix` is optional:
 with it, the examples over HTTP are built as programs, and without it as stubs
 that say what is missing.
 
@@ -49,6 +49,7 @@ the RFC that it implements.
 | `bhttp`: `varint`, `decode`, `encode`, `field` | The rules of RFC 9292, case by case, on messages assembled by hand |
 | `bhttp`: `rfc9292` | The four encodings of Section 5, in both directions |
 | `ohttp`: `key_config`, `encapsulation`, `http binding` | Both encodings of a key configuration, every suite, and every way of breaking an exchange |
+| `ohttp`: `replay` | HTTP dates in their three formats, the replay cache, and a client correcting its clock through the `date` problem |
 | `ohttp`: `rfc9458`, `chunked` | Appendix A of the RFC and of the chunked draft, byte for byte in both directions, with every intermediate value |
 | `upstream vectors`, `differential` | What ohttp-go and the Rust crates produced, replayed without them |
 | `properties` | QCheck: round trips, prefixes, corrupted input, and slicing of chunked streams |
@@ -118,7 +119,7 @@ opam exec -- dune fmt               # fix
 | --- | --- | --- |
 | `bhttp` | Messages | `Request`, `Response`, `Message`, `Field` |
 | `bhttp` | Encoding | `Framing`, `Varint`, `Wire` (private), `Hex`, `Error` |
-| `ohttp` | Application interface | `Key_config`, `Http_message`, `Http_binding`, `Media_type`, `Error` |
+| `ohttp` | Application interface | `Key_config`, `Http_message`, `Http_binding`, `Replay`, `Media_type`, `Error` |
 | `ohttp` | Exchanges of byte strings | `Client`, `Gateway`, `Suite` |
 | `ohttp` | Byte layout and key schedule, as pure functions | `Encapsulation` |
 | `ohttp` | Chunked Oblivious HTTP | `Chunked` |

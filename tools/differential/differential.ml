@@ -104,6 +104,16 @@ let rules =
          padding bytes\"";
     };
     {
+      peer = "go";
+      category = "config/derive-draft";
+      contains = "MLKEM768-X25519: the peer derives another key pair";
+      pinned = true;
+      reason =
+        "CIRCL derives an X-Wing key pair from SHAKE256 of the seed, where \
+         draft-ietf-hpke-pq-05 has DeriveKeyPair use LabeledDerive, with the \
+         label and the suite identifier; the recorded keys follow CIRCL";
+    };
+    {
       peer = "rust";
       category = "chunked/peer-client";
       contains = "panic: range end index 32 out of range for slice of length 16";
@@ -229,10 +239,19 @@ type key = {
 
 let ok = function Ok v -> v | Error e -> failwith (Error.to_string e)
 
+(* The key that the peer derives from the seed, which for X-Wing is not the one
+   of draft-ietf-hpke-pq: see test/ohttp/support/peer_key.ml, and the category
+   config/derive-draft. *)
 let make_key g kem symmetric =
   let key_id = Cases.int g 256 in
   let seed = Cases.bytes g (Hpke.Kem.private_key_size kem) in
-  match Gateway.Key.derive ~key_id ~symmetric kem ~ikm:seed with
+  let key =
+    match Ohttp_test_support.Peer_key.derive_key_pair kem ~ikm:seed with
+    | Ok (private_key, _) ->
+        Gateway.Key.of_private_key ~key_id ~symmetric private_key
+    | Error e -> Error (Error.Hpke e)
+  in
+  match key with
   | Ok key -> Some { key_id; kem; symmetric; seed; key }
   (* Rejection sampling for a NIST curve can fail for one seed in 2^32. *)
   | Error _ -> None
@@ -346,6 +365,38 @@ let config_cases g count (peer : Peer.t) =
                   end)
         done)
       (suites peer);
+  (* The same, against the derivation of RFC 9180 and draft-ietf-hpke-pq, once
+     for each KEM. *)
+  let category = "config/derive-draft" in
+  if selected category then
+    List.iter
+      (fun kem ->
+        let pair = List.assoc kem (suites peer) in
+        match make_key g kem [ pair ] with
+        | None -> ()
+        | Some k -> (
+            match
+              answer_or_skip peer category
+                (Peer.ask peer "config_derive" (key_fields k))
+            with
+            | None -> ()
+            | Some answer -> (
+                match
+                  Gateway.Key.derive ~key_id:k.key_id ~symmetric:[ pair ] kem
+                    ~ikm:k.seed
+                with
+                | Error _ -> ()
+                | Ok key ->
+                    let ours = Key_config.encode (Gateway.Key.config key) in
+                    if get_hex "config" answer = Some ours then
+                      report peer category Agree
+                    else
+                      report peer category
+                        (Differ
+                           (Format.asprintf
+                              "%a: the peer derives another key pair"
+                              Hpke.Kem.pp kem)))))
+      (List.sort_uniq compare (List.map fst (suites peer)));
   let category = "config/parse" in
   if selected category then
     List.iter

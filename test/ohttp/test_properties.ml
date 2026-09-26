@@ -22,7 +22,9 @@ let payload = Gen.string_size (Gen.int_range 0 512)
 
 let round_trip =
   Test.make ~name:"an exchange returns what was sent" ~count:200
-    (Gen.quad (pick [ 0; 1; 2; 3 ]) (pick Suite.all_symmetric) payload payload)
+    (Gen.quad
+       (pick (List.init (List.length Suite.all_kems) Fun.id))
+       (pick Suite.all_symmetric) payload payload)
     (fun (key, pair, request, response) ->
       let config = Gateway.Key.config (List.nth (Lazy.force keys) key) in
       let encapsulated, client_context =

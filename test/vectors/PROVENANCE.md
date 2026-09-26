@@ -145,7 +145,7 @@ two other implementations produced when `tools/differential` ran against them:
 
 | Peer | Implementation | Version |
 | --- | --- | --- |
-| `go` | [chris-wood/ohttp-go](https://github.com/chris-wood/ohttp-go) | `v0.0.0-20260205154755-776f22a178b8`, pinned in `tools/differential/go/go.mod` and `go.sum` |
+| `go` | [chris-wood/ohttp-go](https://github.com/chris-wood/ohttp-go) | `v0.0.0-20260205154755-776f22a178b8`, over CIRCL `v1.6.5`, pinned in `tools/differential/go/go.mod` and `go.sum` |
 | `rust` | [martinthomson/ohttp](https://github.com/martinthomson/ohttp) | the `ohttp` and `bhttp` crates at `0.8.0`, pinned with everything beneath them in `tools/differential/rust/Cargo.lock` |
 
 ```sh
@@ -159,16 +159,23 @@ same on every run; what the peers seal uses their own randomness, so a new run
 gives other bytes, and the recorded files are the fixtures. A run that records
 fails unless both peers are there and nothing differs unexpectedly.
 
+The Go files were recorded again when the Go peer gained X448 and X-Wing, in a
+run of the driver against that peer alone with the same count and seed, since
+Docker Hub refused the Rust peer's base image at the time. The Rust files are
+from the earlier run of both peers: the Rust crates provide neither KEM, and
+nothing that they recorded depends on the change.
+
 The `ohttp` files hold key configurations that the peer derived from a seed,
 and exchanges of which the peer sealed one side: the request when it was the
 client, the response when it was the gateway. They cover every suite that the
-peer shares with this library, which is all 36 for Go, and X25519 and P-256
-with HKDF-SHA256 and AES-128-GCM or ChaCha20Poly1305 for Rust, and chunked
-exchanges for Rust. The tests derive the same configuration from the seed,
-open the request as the gateway, and open the response under the secret that
-the rebuilt gateway context exports, so a recorded response is a known answer
-whoever sealed the request. The `bhttp` files hold messages that the peer
-encoded, which must decode to what was asked for.
+peer shares with this library: 54 for Go, X448 and X-Wing among them, and for
+Rust X25519 and P-256 with HKDF-SHA256 and AES-128-GCM or ChaCha20Poly1305,
+and chunked exchanges. The tests derive the same key from the seed as the peer
+does (see `test/ohttp/support/peer_key.ml`: for X-Wing, CIRCL departs from
+draft-ietf-hpke-pq), open the request as the gateway, and open the response
+under the secret that the rebuilt gateway context exports, so a recorded
+response is a known answer whoever sealed the request. The `bhttp` files hold
+messages that the peer encoded, which must decode to what was asked for.
 
 Where a peer departs from an RFC, `tools/differential/differential.ml` has a
 rule with the reason, and `doc/interoperability.md` lists them.

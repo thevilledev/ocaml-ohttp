@@ -9,8 +9,10 @@ version.
 
 ## 0. Release hpke first
 
-`ohttp` requires `hpke` 0.2.0. Until it is in the opam repository, `ohttp`
-cannot be, although `bhttp` can. When it is, remove the `opam pin` steps from
+`ohttp` requires `hpke` 0.4.0, and is developed against its release candidate,
+`0.4.0~rc1`. Until 0.4.0 itself is in the opam repository, `ohttp` cannot be,
+although `bhttp` can. When it is, raise the bound in `ohttp.opam` to
+`{>= "0.4.0"}`, and remove the `opam pin` steps from
 `.github/workflows/ci.yml`, from [getting started](getting-started.md), and
 from [development](development.md).
 

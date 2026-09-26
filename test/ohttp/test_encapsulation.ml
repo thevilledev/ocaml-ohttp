@@ -263,6 +263,60 @@ let test_invalid_requests () =
     ^ String.make 32 '\000'
     ^ String.sub encapsulated 39 (String.length encapsulated - 39))
 
+(* ML-KEM decapsulates any ciphertext of the right length, to an unrelated
+   secret when it was changed, so a tampered request fails only when it is
+   opened. A hybrid also refuses an ephemeral element that is not one. Either
+   way, the gateway reports the one error. *)
+let test_post_quantum_requests () =
+  let rng = rng () in
+  List.iter
+    (fun kem ->
+      let key = key ~symmetric:[ aes ] kem in
+      let gateway = ok (Gateway.create [ key ]) in
+      let encapsulated, _ =
+        ok (Client.encapsulate ~rng (Gateway.Key.config key) "request")
+      in
+      let enc_end =
+        Encapsulation.header_length + Hpke.Kem.encapsulated_key_size kem
+      in
+      let decapsulate s = Result.map fst (Gateway.decapsulate gateway s) in
+      let rec every i =
+        if i < String.length encapsulated then (
+          Alcotest.check bytes_result
+            (Format.asprintf "%a: bit flip in byte %d" Hpke.Kem.pp kem i)
+            (Error Error.Decapsulation_failed)
+            (decapsulate (flip encapsulated i));
+          (* Every byte of the last element and the ciphertext, and a sample of
+             the ML-KEM ciphertext before them. *)
+          every (if i < enc_end - 133 then i + 37 else i + 1))
+      in
+      every Encapsulation.header_length;
+      let replace_end_of_enc element =
+        let at = enc_end - String.length element in
+        String.sub encapsulated 0 at
+        ^ element
+        ^ String.sub encapsulated enc_end (String.length encapsulated - enc_end)
+      in
+      match kem with
+      | Hpke.Kem.Mlkem768_x25519 ->
+          Alcotest.check bytes_result "a low-order X25519 element"
+            (Error Error.Decapsulation_failed)
+            (decapsulate (replace_end_of_enc (String.make 32 '\000')))
+      | Hpke.Kem.Mlkem768_p256 ->
+          Alcotest.check bytes_result "a P-256 element off the curve"
+            (Error Error.Decapsulation_failed)
+            (decapsulate (replace_end_of_enc ("\004" ^ String.make 64 '\x01')))
+      | _ -> ())
+    Hpke.Kem.
+      [
+        Mlkem768_x25519;
+        Mlkem768_p256;
+        Mlkem1024_p384;
+        Mlkem512;
+        Mlkem768;
+        Mlkem1024;
+      ]
+
 let test_invalid_responses () =
   let rng = rng () in
   let key = key Hpke.Kem.X25519 in
@@ -310,6 +364,25 @@ let test_invalid_key () =
   | Ok _ -> Alcotest.fail "a low-order public key was used"
   | Error e -> Alcotest.failf "unexpected error: %a" Error.pp e
 
+let test_invalid_hybrid_key () =
+  (* An X-Wing key whose X25519 half is of low order is read, as for X25519, and
+     refused when it is used. *)
+  let valid =
+    Hpke.Public_key.to_bytes
+      (Key_config.public_key
+         (Gateway.Key.config (key Hpke.Kem.Mlkem768_x25519)))
+  in
+  let public_key =
+    hpke_ok
+      (Hpke.Public_key.of_bytes ~kem:Hpke.Kem.Mlkem768_x25519
+         (String.sub valid 0 1184 ^ String.make 32 '\000'))
+  in
+  let config = ok (Key_config.create ~key_id:1 public_key [ aes ]) in
+  match Client.encapsulate ~rng:(rng ()) config "request" with
+  | Error (Error.Hpke _) -> ()
+  | Ok _ -> Alcotest.fail "a low-order X25519 half was used"
+  | Error e -> Alcotest.failf "unexpected error: %a" Error.pp e
+
 let tests =
   [
     Alcotest.test_case "every suite" `Quick test_all_suites;
@@ -319,6 +392,9 @@ let tests =
     Alcotest.test_case "gateway keys" `Quick test_gateway_keys;
     Alcotest.test_case "labels" `Quick test_labels;
     Alcotest.test_case "invalid requests" `Quick test_invalid_requests;
+    Alcotest.test_case "post-quantum requests" `Quick test_post_quantum_requests;
     Alcotest.test_case "invalid responses" `Quick test_invalid_responses;
     Alcotest.test_case "invalid public key" `Quick test_invalid_key;
+    Alcotest.test_case "invalid hybrid public key" `Quick
+      test_invalid_hybrid_key;
   ]

@@ -28,10 +28,11 @@ let gateway () =
         | Error e -> failwith (Ohttp.Error.to_string e)
       in
       let gateway = Result.get_ok (Ohttp.Gateway.create [ key ]) in
+      let replay = Ohttp.Replay.create ~tolerance:60. ~capacity:100_000 () in
       Printf.printf "gateway on port %s\n%!" port;
       Lwt_main.run
         (Services.serve ~port:(int_of_string port)
-           (Services.gateway ~rng ~targets gateway))
+           (Services.gateway ~rng ~replay ~targets gateway))
   | _ ->
       prerr_endline
         "usage: ohttp_gateway PORT AUTHORITY=URL [AUTHORITY=URL ...]";
@@ -140,6 +141,7 @@ let run_e2e () =
         Services.serve ~stop ~port:target_port Services.target;
         Services.serve ~stop ~port:gateway_port
           (Services.gateway ~rng
+             ~replay:(Ohttp.Replay.create ~tolerance:60. ~capacity:1000 ())
              ~targets:[ ("target.example", local target_port "") ]
              gateway);
         Services.serve ~stop ~port:relay_port
@@ -178,6 +180,33 @@ let run_e2e () =
   in
   check "the gateway refuses other targets, inside the encapsulation"
     (match response with Ok r -> r.status = 403 | Error _ -> false);
+  (* The same Encapsulated Request, sent again by the relay or anyone who saw
+     it, is refused inside the encapsulation. *)
+  let dated =
+    {
+      request with
+      headers =
+        Ohttp.Replay.date_field ~now:(Unix.gettimeofday ()) :: request.headers;
+    }
+  in
+  let encapsulated, context =
+    Result.get_ok (Ohttp.Http_message.encapsulate_request ~rng config dated)
+  in
+  let* first = Services.post ~relay_uri context encapsulated in
+  let* second = Services.post ~relay_uri context encapsulated in
+  check "a replayed request is refused"
+    (match (first, second) with
+    | Ok first, Ok second -> first.status = 200 && second.status = 400
+    | _ -> false);
+  (* A client whose clock is an hour slow is told the gateway's time, and
+     succeeds when it retries. *)
+  let* response =
+    Services.call ~rng
+      ~clock:(fun () -> Unix.gettimeofday () -. 3600.)
+      ~relay_uri config request
+  in
+  check "a client with a wrong clock corrects it and retries"
+    (match response with Ok r -> r.status = 200 | Error _ -> false);
   (* A key that the gateway does not hold: the refusal cannot be sealed. *)
   let other =
     Result.get_ok (Ohttp.Gateway.Key.generate ~rng ~key_id:9 Hpke.Kem.X25519)

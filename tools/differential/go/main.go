@@ -263,7 +263,7 @@ func handle(r request) (any, error) {
 	case "hello":
 		return map[string]any{
 			"name": "ohttp-go", "version": moduleVersion, "protocol": 1,
-			"kems":  []int{0x0010, 0x0011, 0x0012, 0x0020},
+			"kems":  []int{0x0010, 0x0011, 0x0012, 0x0020, 0x0021, 0x647a},
 			"kdfs":  []int{1, 2, 3},
 			"aeads": []int{1, 2, 3},
 			// What this implementation can do beyond the common core.

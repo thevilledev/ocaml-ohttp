@@ -13,7 +13,10 @@ not production-ready. They are published for interoperability review.
   advertises, whatever else the library provides, and reports every failure
   that a peer can cause as one error, `Decapsulation_failed`, so that it does
   not tell its peer which step failed. `Http_binding.Gateway.error_response`
-  answers all of them alike.
+  answers all of them alike. That includes the post-quantum KEMs: ML-KEM
+  decapsulates a tampered ciphertext to an unrelated secret, so the request
+  fails when it is opened, and a hybrid refuses an invalid elliptic-curve
+  element; both are `Decapsulation_failed`.
 - Every request uses a fresh HPKE context (RFC 9458 Section 6.1), and every
   response a fresh nonce, which a gateway draws even for a replayed request.
 - Response contexts are immutable values that hold the exported secret of one
@@ -34,10 +37,17 @@ not production-ready. They are published for interoperability review.
 
 - Secret key material lives in ordinary OCaml strings and cannot be reliably
   zeroised; the runtime and garbage collector may copy it.
-- There is no replay protection. RFC 9458 Section 6.5 leaves it to the
-  gateway: keep the encapsulated keys of recent requests, and have clients
-  send a `Date` field to bound how long they are kept. Neither is done here.
-  Requests that are not idempotent need it.
+- Replay protection is the gateway's to apply. `Replay.check` keeps the
+  encapsulated keys of recent requests and checks their `date` field, as RFC
+  9458 Section 6.5 describes, but only for a gateway that calls it, and only
+  within one process. Requests that are not idempotent need it. With
+  `~require_date:false`, a request without a date can be replayed once its key
+  has been forgotten, and a full cache refuses requests rather than let one
+  through unremembered.
+- Post-quantum protection covers only requests that a client seals to a
+  post-quantum key. The ML-KEM and hybrid KEMs follow draft-ietf-hpke-pq-05,
+  which may still change, and the ML-KEM implementation of the `mlkem`
+  package is as unaudited as these libraries.
 - Key configurations are only parsed. A client must fetch them over a channel
   that authenticates the gateway, and must get the same ones as every other
   client, or the gateway can tell clients apart (RFC 9458 Sections 6.1 and 7).

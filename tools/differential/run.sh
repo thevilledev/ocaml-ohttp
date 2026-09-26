@@ -24,7 +24,8 @@ set --  "$@" --rfc9292 "$root/test/vectors/rfc9292.json"
 
 if command -v go >/dev/null 2>&1; then
   (cd "$root/tools/differential/go" && go build -o "$out/go-peer" .)
-  go_version=$(go version | cut -d' ' -f3)
+  # Inside the module, which may select a newer toolchain than the one on PATH.
+  go_version=$(cd "$root/tools/differential/go" && go version | cut -d' ' -f3)
   set -- "$@" --peer "go=$out/go-peer" --source "go=$go_version"
 elif $recording; then
   echo "recording needs the Go peer, and go is not installed" >&2

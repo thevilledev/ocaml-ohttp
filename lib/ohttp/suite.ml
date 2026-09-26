@@ -20,7 +20,21 @@ let default_symmetric : symmetric list =
     { kdf = Hpke.Kdf.Hkdf_sha256; aead = Hpke.Aead.Chacha20_poly1305 };
   ]
 
-let all_kems = Hpke.Kem.[ X25519; P256; P384; P521 ]
+let all_kems =
+  Hpke.Kem.
+    [
+      X25519;
+      P256;
+      P384;
+      P521;
+      X448;
+      Mlkem768_x25519;
+      Mlkem768_p256;
+      Mlkem1024_p384;
+      Mlkem512;
+      Mlkem768;
+      Mlkem1024;
+    ]
 
 let all_symmetric : symmetric list =
   List.concat_map
