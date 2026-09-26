@@ -28,6 +28,12 @@ depends: [
   "yojson" {with-test & >= "2.0.0"}
   "odoc" {with-doc}
   "ocamlformat" {with-dev-setup & = "0.29.0"}
+  "cohttp-lwt-unix" {with-dev-setup}
+]
+# hpke 0.4.0 is not on opam yet. Remove this and raise the bound above to
+# {>= "0.4.0"} once it is; opam-repository does not accept pin-depends.
+pin-depends: [
+  ["hpke.0.4.0~rc1" "git+https://github.com/thevilledev/ocaml-hpke.git#v0.4.0-rc1"]
 ]
 build: [
   ["dune" "subst"] {dev}

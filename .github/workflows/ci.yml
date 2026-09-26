@@ -7,6 +7,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 # A new push to a pull request cancels its older run. Runs on main are left
 # to finish so every commit there gets a result.
@@ -17,119 +18,138 @@ concurrency:
 permissions:
   contents: read
 
+# Dependencies come from the opam files only, the hpke release candidate
+# included: ohttp.opam pins it with pin-depends until hpke 0.4.0 is on opam.
 jobs:
   test:
+    name: OCaml ${{ matrix.ocaml-compiler }}
+    runs-on: avrea-ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            ocaml: "4.14"
-          - os: ubuntu-latest
-            ocaml: "5.4"
-    runs-on: ${{ matrix.os }}
+        ocaml-compiler: ["4.14", "5.4"]
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ocaml/setup-ocaml@v3
+      - name: Set up OCaml
+        uses: ocaml/setup-ocaml@e89b2ded52a6e13f50162220cf5fe47290162032 # v3.8.0
         with:
-          ocaml-compiler: ${{ matrix.ocaml }}
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
           dune-cache: true
-      # ohttp needs hpke 0.4.0, whose release candidate is not on opam. Remove
-      # this pin once hpke 0.4.0 is released.
-      - run: opam pin add hpke.0.4.0~rc1 git+https://github.com/thevilledev/ocaml-hpke.git#v0.4.0-rc1 --no-action
-      - run: opam install . --deps-only --with-test --with-doc
-      - run: opam exec -- dune build @all @doc
-      - run: opam exec -- dune runtest
+      - name: Install dependencies
+        run: opam install . --deps-only --with-test --with-doc
+      - name: Build, test, and build documentation
+        run: opam exec -- dune build @all @runtest @doc
 
   packaging:
-    runs-on: ubuntu-latest
+    name: opam packages
+    runs-on: avrea-ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ocaml/setup-ocaml@v3
+      - name: Set up OCaml
+        uses: ocaml/setup-ocaml@e89b2ded52a6e13f50162220cf5fe47290162032 # v3.8.0
         with:
           ocaml-compiler: "5.4"
           dune-cache: true
-      - run: opam lint bhttp.opam ohttp.opam
-      - run: opam pin add hpke.0.4.0~rc1 git+https://github.com/thevilledev/ocaml-hpke.git#v0.4.0-rc1 --no-action
+      - name: Lint the opam packages
+        run: opam lint bhttp.opam ohttp.opam
       # Each package must build and pass its tests without the other's sources.
-      - run: opam install ./bhttp.opam --with-test
-      - run: opam install ./ohttp.opam --with-test
+      - name: Install bhttp from its package definition
+        run: opam install ./bhttp.opam --with-test
+      - name: Install ohttp from its package definition
+        run: opam install ./ohttp.opam --with-test
 
-  format:
-    runs-on: ubuntu-latest
+  # The dev setup brings ocamlformat and cohttp-lwt-unix. The examples need an
+  # HTTP library, which the packages do not depend on. Without one they build
+  # as stubs that explain themselves, so ask the end-to-end run to fail if that
+  # is what it turns out to be.
+  hygiene:
+    name: Formatting and examples
+    runs-on: avrea-ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ocaml/setup-ocaml@v3
+      - name: Set up OCaml
+        uses: ocaml/setup-ocaml@e89b2ded52a6e13f50162220cf5fe47290162032 # v3.8.0
         with:
           ocaml-compiler: "5.4"
           dune-cache: true
-      - run: opam install ocamlformat.0.29.0
-      - run: opam exec -- dune build @fmt
+      - name: Install dependencies and the dev setup
+        run: opam install . --deps-only --with-dev-setup
+      - name: Check formatting
+        run: opam exec -- dune build @fmt
+      - name: Build the examples
+        run: opam exec -- dune build ./examples
+      - name: Run the basic example
+        run: opam exec -- dune exec examples/basic.exe
+      - name: Run the end-to-end example
+        run: opam exec -- dune exec examples/e2e.exe -- --require
 
   fuzz:
-    runs-on: ubuntu-latest
+    name: Decoder fuzzing
+    runs-on: avrea-ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ocaml/setup-ocaml@v3
+      - name: Set up OCaml
+        uses: ocaml/setup-ocaml@e89b2ded52a6e13f50162220cf5fe47290162032 # v3.8.0
         with:
           ocaml-compiler: "5.4"
           dune-cache: true
-      - run: opam pin add hpke.0.4.0~rc1 git+https://github.com/thevilledev/ocaml-hpke.git#v0.4.0-rc1 --no-action
-      - run: opam install . --deps-only --with-test
-      - run: opam exec -- dune build --profile fuzz fuzz/fuzz_bhttp.exe fuzz/fuzz_ohttp.exe
+      - name: Install test dependencies
+        run: opam install . --deps-only --with-test
+      - name: Compile the fuzz targets
+        run: opam exec -- dune build --profile fuzz fuzz/fuzz_bhttp.exe fuzz/fuzz_ohttp.exe
       # --repeat counts runs of each test. doc/development.md has the longer
       # run for changes to a decoder.
-      - run: opam exec -- _build/default/fuzz/fuzz_bhttp.exe --repeat 300 --seed 9292
-      - run: opam exec -- _build/default/fuzz/fuzz_ohttp.exe --repeat 300 --seed 9458
-
-  # The examples need an HTTP library, which the packages do not depend on.
-  # Without one they build as stubs that explain themselves, so ask the
-  # end-to-end run to fail if that is what it turns out to be.
-  examples:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: ocaml/setup-ocaml@v3
-        with:
-          ocaml-compiler: "5.4"
-          dune-cache: true
-      - run: opam pin add hpke.0.4.0~rc1 git+https://github.com/thevilledev/ocaml-hpke.git#v0.4.0-rc1 --no-action
-      - run: opam install . --deps-only
-      - run: opam install cohttp-lwt-unix
-      - run: opam exec -- dune build ./examples
-      - run: opam exec -- dune exec examples/basic.exe
-      - run: opam exec -- dune exec examples/e2e.exe -- --require
+      - name: Run bounded fuzzing
+        run: |
+          opam exec -- _build/default/fuzz/fuzz_bhttp.exe --repeat 300 --seed 9292
+          opam exec -- _build/default/fuzz/fuzz_ohttp.exe --repeat 300 --seed 9458
 
   # The Go peer only: the Rust peer needs a Docker build that is slow to
   # repeat, and what both produced is replayed by the test job.
   differential:
-    runs-on: ubuntu-latest
+    name: Differential against Go
+    runs-on: avrea-ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ocaml/setup-ocaml@v3
+      - name: Set up OCaml
+        uses: ocaml/setup-ocaml@e89b2ded52a6e13f50162220cf5fe47290162032 # v3.8.0
         with:
           ocaml-compiler: "5.4"
           dune-cache: true
-      - uses: actions/setup-go@v5
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.25"
-      - run: opam pin add hpke.0.4.0~rc1 git+https://github.com/thevilledev/ocaml-hpke.git#v0.4.0-rc1 --no-action
-      - run: opam install . --deps-only --with-test
-      - run: opam exec -- dune build ./tools/differential/differential.exe
-      - run: cd tools/differential/go && go build -o ../../../go-peer .
-      - run: >-
+          go-version-file: tools/differential/go/go.mod
+          cache-dependency-path: tools/differential/go/go.sum
+      - name: Install test dependencies
+        run: opam install . --deps-only --with-test
+      - name: Build the driver
+        run: opam exec -- dune build ./tools/differential/differential.exe
+      - name: Build the Go peer
+        working-directory: tools/differential/go
+        run: go build -o ../../../go-peer .
+      - name: Compare against the Go peer
+        run: >-
           opam exec -- ./_build/default/tools/differential/differential.exe
           --peer go=./go-peer --require go
           --rfc9292 test/vectors/rfc9292.json --count 4
