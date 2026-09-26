@@ -58,9 +58,18 @@ not production-ready. They are published for interoperability review.
 - Nothing pads messages unless asked to. The length of an encapsulated message
   reveals the length of what it carries; `?padding` is there for callers that
   need to hide it (RFC 9458 Section 6.2.3).
-- The relay and the gateway of `examples/` are demonstrations. They do not
-  limit request sizes or rates, and the relay does none of the traffic
-  analysis defences of RFC 9458 Section 6.2.
+- The relays and gateways of the adapter packages (`ohttp-cohttp-lwt`,
+  `ohttp-cohttp-eio`, `ohttp-piaf`) and of `examples/` read each message in
+  full and do not limit request sizes or rates; a deployment puts limits in
+  front of them. Their relays pass on only the content and its type, but do
+  none of the traffic analysis defences of RFC 9458 Section 6.2.
+- An adapter's gateway forwards only to the authorities in its list of
+  targets, and appends the request's path to the URI that the list gives. A
+  gateway built on `Ohttp.Service` without the adapters must choose its targets
+  as carefully: one that forwards anywhere is an open proxy.
+- An adapter's client fetches key configurations with a plain `GET`, and
+  trusts what it gets. It is the application's to fetch them from a source
+  that authenticates the gateway.
 - `Ohttp.Chunked` follows a draft, and its interface may change.
 - `hpke.for_testing` is a dependency of the tests only. `Client.encapsulate_with`
   accepts a sender setup so that the tests can reproduce published vectors; with

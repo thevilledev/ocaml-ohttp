@@ -8,6 +8,7 @@ let () =
       ("http binding", Test_http_binding.tests);
       ("chunked", Test_chunked.tests);
       ("replay", Test_replay.tests);
+      ("service", Test_service.tests);
       ("upstream vectors", Test_upstream_vectors.tests);
       ("differential", Test_differential.tests);
       ("properties", Test_properties.tests);

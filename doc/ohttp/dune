@@ -14,6 +14,5 @@
   (../releasing.md as doc/releasing.md)
   (../../SECURITY.md as SECURITY.md)
   (../../examples/basic.ml as examples/basic.ml)
-  (../../examples/cohttp_adapter.ml as examples/cohttp_adapter.ml)
   (../../examples/services.ml as examples/services.ml)
   (../../test/vectors/PROVENANCE.md as test/vectors/PROVENANCE.md)))

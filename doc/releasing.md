@@ -3,9 +3,10 @@
 [README](../README.md) · [Development](development.md) ·
 [Changelog](../CHANGES.md)
 
-Use this checklist to prepare an opam release of `bhttp` and `ohttp`. They are
-released together, from one tag, and `ohttp` requires the `bhttp` of the same
-version.
+Use this checklist to prepare an opam release of `bhttp`, `ohttp`, and the
+adapters for HTTP libraries: `ohttp-cohttp`, `ohttp-cohttp-lwt`,
+`ohttp-cohttp-eio`, and `ohttp-piaf`. They are released together, from one
+tag, and each requires the others of the same version that it depends on.
 
 ## 0. Release hpke first
 
@@ -20,8 +21,9 @@ accept, and update the notes about the pin in
 
 - Check the version, date, and user-visible changes in
   [CHANGES.md](../CHANGES.md).
-- Review `bhttp.opam` and `ohttp.opam`: dependency lower bounds, OCaml and Dune
-  requirements, synopsis, description, license, and repository links.
+- Review every `.opam` file: dependency lower bounds, OCaml and Dune
+  requirements, synopsis, description, license, and repository links. The Eio
+  adapters require OCaml 5.1.
 - Keep the package descriptions in `dune-project` consistent with the opam
   files. This repository sets `generate_opam_files` to `false`, so edits to
   `dune-project` do not regenerate them.
@@ -40,11 +42,12 @@ accept, and update the notes about the pin in
 Follow the [development setup](development.md#setup), then run:
 
 ```sh
-opam lint bhttp.opam ohttp.opam
+opam lint *.opam
 opam exec -- dune build @all @doc @fmt
 opam exec -- dune runtest
 opam exec -- dune build -p bhttp @install @runtest
 opam exec -- dune build -p bhttp,ohttp @install @runtest
+opam exec -- dune build -p bhttp,ohttp,ohttp-cohttp,ohttp-cohttp-lwt,ohttp-cohttp-eio,ohttp-piaf @install @runtest
 opam exec -- dune exec examples/basic.exe
 opam exec -- dune exec examples/e2e.exe -- --require
 opam exec -- dune build --profile fuzz fuzz/fuzz_bhttp.exe fuzz/fuzz_ohttp.exe
@@ -53,9 +56,9 @@ opam exec -- _build/default/fuzz/fuzz_ohttp.exe --repeat 2000 --seed 9458
 tools/differential/run.sh
 ```
 
-Repeat the build and the tests on the oldest supported compiler; see
-[development](development.md#setup). `dune build -p bhttp` must pass without
-`ohttp`: `bhttp` is installable on its own.
+Repeat the build and the tests on the oldest supported compiler, without the
+Eio adapters; see [development](development.md#setup). `dune build -p bhttp`
+must pass without `ohttp`: `bhttp` is installable on its own.
 
 The differential run needs Go and Docker, and must end without an `UNEXPECTED`
 or a `STALE` line. If a peer has moved on, update its pin in
@@ -69,9 +72,14 @@ or a `STALE` line. If a peer has moved on, update its pin in
 opam switch create ./_opam 5.4.1 --no-install
 opam install ./bhttp.opam --with-test
 opam install ./ohttp.opam --with-test
+opam install ./ohttp-cohttp.opam --with-test
+opam install ./ohttp-cohttp-lwt.opam --with-test
+opam install ./ohttp-cohttp-eio.opam --with-test
+opam install ./ohttp-piaf.opam --with-test
 ```
 
 ## 4. Publish the validated candidate
 
-Tag the commit that passed, and publish both packages from that tag with
-`dune-release` or `opam publish`, `bhttp` first.
+Tag the commit that passed, and publish the packages from that tag with
+`dune-release` or `opam publish`: `bhttp` first, then `ohttp`, then
+`ohttp-cohttp`, then the adapters.

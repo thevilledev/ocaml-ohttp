@@ -6,20 +6,164 @@
 Oblivious HTTP sits on top of HTTP; it does not replace it. A client makes one
 `POST` to a relay. A gateway receives one `POST`, and may make an ordinary
 request to a target. `ohttp` and `bhttp` therefore perform no I/O and depend on
-no HTTP library: every OCaml HTTP library can carry their messages, and an
-application keeps the one it already uses.
+no HTTP library. An adapter package carries their messages over one library,
+and an application picks the one for the library it already uses.
 
-## What an HTTP library has to do
+## Adapter packages
 
-| Party | It needs to | With |
+| Package | HTTP library | OCaml from | Client | Relay | Gateway |
+| --- | --- | --- | --- | --- | --- |
+| `ohttp-cohttp-lwt` | cohttp-lwt 6: `cohttp-lwt-unix`, `cohttp-lwt-jsoo`, MirageOS | 4.14 | any cohttp-lwt client | ✓ | ✓, and targets in the same process |
+| `ohttp-cohttp-eio` | cohttp-eio 6 | 5.1 | ✓ | ✓ | ✓ |
+| `ohttp-piaf` | Piaf 0.2, HTTP/1.1 and HTTP/2 | 5.1 | ✓ | ✓ | ✓ |
+| `ohttp-cohttp` | the types of the `http` package, which the two cohttp adapters share | 4.14 | | | |
+
+Each adapter has the same parts, over its library's types:
+
+| Part | What it does |
+| --- | --- |
+| `Client.key_configs` | `GET`s a gateway's key configurations and decodes them |
+| `Client.call` | Encapsulates a request with a `date` field, posts it to a relay, checks and opens the answer, and retries once with the gateway's time if the gateway refuses the date |
+| `Relay.handler` | Passes a `POST` of type `message/ohttp-req` to one gateway with no field but its content type, and the gateway's answer back |
+| `Gateway.handler` | Serves the key configurations at `/.well-known/ohttp-gateway` and Encapsulated Requests at `/gateway`, checks for replay, and seals every answer once the encapsulation is off |
+| `Target.forward` | Sends a decapsulated request to the target that a list of authorities names, and refuses the rest with a sealed 403 |
+
+A gateway's configuration is an `Ohttp.Service.Gateway.t`, which is the same
+for every adapter:
+
+```ocaml
+let service =
+  Ohttp.Service.Gateway.create ~rng
+    ~replay:(Ohttp.Replay.create ~tolerance:60. ~capacity:100_000 ())
+    (Result.get_ok (Ohttp.Gateway.create [ key ]))
+```
+
+With `~replay`, every request is checked for replay; `~checks_replay` leaves
+out those that the targets treat as idempotent, such as `GET`s.
+
+### cohttp-lwt
+
+```sh
+opam install ohttp-cohttp-lwt cohttp-lwt-unix
+```
+
+The client, the relay, and `Target.forward` make requests of their own, so they
+come from a functor over a client of cohttp-lwt. The gateway's handlers do not.
+
+```ocaml
+module Ohttp_client = Ohttp_cohttp_lwt.Make (Cohttp_lwt_unix.Client)
+
+(* A gateway for one target. *)
+let gateway =
+  Ohttp_cohttp_lwt.Gateway.handler service
+    (Ohttp_client.Target.forward
+       ~targets:[ ("example.com", Uri.of_string "https://example.com") ])
+
+let () =
+  Lwt_main.run
+    (Cohttp_lwt_unix.Server.create ~mode:(`TCP (`Port 8081))
+       (Cohttp_lwt_unix.Server.make ~callback:(fun _conn -> gateway) ()))
+
+(* A client. *)
+let response =
+  Ohttp_client.Client.call ~rng
+    ~relay:(Uri.of_string "https://relay.example/relay")
+    config
+    (Bhttp.Request.make ~meth:"GET" ~authority:"example.com" ~path:"/" ())
+```
+
+`Ohttp_cohttp_lwt.Target.of_handler` turns a cohttp-lwt callback into a target,
+so that a gateway can sit in front of an application in the same process,
+without a second hop over the network.
+
+### cohttp-eio
+
+```sh
+opam install ohttp-cohttp-eio eio_main
+```
+
+```ocaml
+Eio_main.run @@ fun env ->
+let client = Cohttp_eio.Client.make ~https:None (Eio.Stdenv.net env) in
+let gateway =
+  Ohttp_cohttp_eio.Gateway.handler service
+    (Ohttp_cohttp_eio.Target.forward client
+       ~targets:[ ("example.com", Uri.of_string "http://127.0.0.1:8000") ])
+in
+Eio.Switch.run @@ fun sw ->
+let socket =
+  Eio.Net.listen ~sw ~backlog:128 (Eio.Stdenv.net env)
+    (`Tcp (Eio.Net.Ipaddr.V4.any, 8081))
+in
+Cohttp_eio.Server.run socket ~on_error:raise
+  (Cohttp_eio.Server.make ~callback:(fun _conn -> gateway) ())
+```
+
+A client calls `Ohttp_cohttp_eio.Client.call client ~rng ~relay config
+request`. Pass `~https` to `Cohttp_eio.Client.make` to reach relays and targets
+over TLS.
+
+### Piaf
+
+```sh
+opam install ohttp-piaf eio_main
+```
+
+```ocaml
+Eio_main.run @@ fun env ->
+Eio.Switch.run @@ fun sw ->
+let gateway =
+  Ohttp_piaf.Gateway.handler service
+    (Ohttp_piaf.Target.forward env
+       ~targets:[ ("example.com", Uri.of_string "https://example.com") ])
+in
+let config = Piaf.Server.Config.create (`Tcp (Eio.Net.Ipaddr.V4.any, 8081)) in
+ignore (Piaf.Server.Command.start ~sw env (Piaf.Server.create ~config gateway))
+```
+
+Piaf reports failures as results, so `Ohttp_piaf.Client.call` returns
+`` `Ohttp `` for a failure of the protocol and `` `Piaf `` for one of the
+transport.
+
+### What the adapters leave to the application
+
+- **Key configurations.** `Client.key_configs` is a plain `GET`. A client must
+  obtain key configurations in a way that authenticates the gateway, and must
+  get the same ones as every other client (RFC 9458 Sections 6.1 and 7).
+- **Limits.** The adapters read each message in full, as they must before
+  opening it, and set no limit on its size or on the rate of requests. Put a
+  limit in front of a relay or a gateway: in the server's configuration, or in
+  a proxy.
+- **Routing.** The relay's handler answers every path, and the gateway's
+  handler two; mount them where the deployment needs them. Both gateway
+  resources are also available alone, as `Gateway.key_configs` and
+  `Gateway.requests`.
+- **The relay's other duties.** Traffic analysis defences, and hiding clients
+  from each other, are outside what a handler can do (RFC 9458 Section 6.2).
+
+### Other libraries
+
+Dream is not among the adapters: its current release, 1.0.0~alpha8, needs
+`mirage-crypto-rng-lwt`, which `mirage-crypto-rng` 2 no longer provides, and
+`ohttp` needs `mirage-crypto-rng` 2.4. Dream and Piaf cannot share a switch
+either, since they need different versions of `httpun`.
+
+For any other library, `Ohttp.Service` is the adapter without the library: each
+party is a function from what it received to what it sends, as strings and
+lists of fields.
+
+| Party | Step | From `Ohttp.Service` |
 | --- | --- | --- |
-| Client | `GET` the key configurations | `Http_binding.Client.key_config_request_headers`, `check_key_config_response`, `Key_config.decode_list` |
-| Client | `POST` a string to the relay and read a string back | `Http_message.encapsulate_request`, `Http_binding.Client.request_headers`, `check_response`, `Http_message.decapsulate_response` |
-| Relay | pass the content and its type on, and nothing else | nothing from these libraries: a relay cannot read what it carries |
-| Gateway | serve a string, and answer a `POST` with a string | `Gateway.encoded_key_configs`, `Http_binding.Gateway.check_request`, `Http_message.decapsulate_request`, `encapsulate_response`, `error_response` |
+| Client | `GET` the key configurations | `Http_binding.Client.key_config_request_headers`, then `Client.key_configs` |
+| Client | `POST` to the relay, and open the answer | `Client.start`, then `Client.finish`, which may ask for one `Retry` |
+| Relay | pass the content and its type on, and nothing else | `Relay.request`, then `Relay.response`, or `Relay.unreachable` |
+| Gateway | serve the key configurations | `Gateway.key_configs` |
+| Gateway | answer a `POST` | `Gateway.receive`, which gives a `Respond` or a `Forward` whose function seals the target's answer |
+| Gateway | pick a target | `Gateway.target` |
 
-Everything in the right-hand column takes and returns strings, integers, and
-lists of pairs of strings.
+An adapter is these steps with the reading and writing of its library around
+them: [`ohttp_cohttp_eio.ml`](../lib/ohttp-cohttp-eio/ohttp_cohttp_eio.ml) is
+the shortest, at about 140 lines.
 
 ## Messages
 
@@ -34,6 +178,7 @@ order, with lowercase names. Every HTTP library can produce and consume that:
 | httpun, h2, piaf | `Headers.to_list` | `Headers.of_list` |
 | curl, ezcurl | already a list of pairs or of lines | |
 
+`Ohttp_cohttp` has these conversions for the types of the `http` package.
 Three things need care when converting from HTTP/1.1:
 
 - **The authority.** HTTP/1.1 carries it in the `Host` field, Binary HTTP in
@@ -47,30 +192,11 @@ Three things need care when converting from HTTP/1.1:
   only opened when it is complete. `Http_message.encapsulate_request` refuses
   it, and a gateway answers it with an encapsulated 417 (RFC 9458 Section 5.1).
 
-[`examples/cohttp_adapter.ml`](../examples/cohttp_adapter.ml) is all of this for
-cohttp, in some forty lines. cohttp 6 takes its types from the `http` package,
-as cohttp-eio does, so the same file serves both.
-
 ## The cohttp examples
 
 [`examples/services.ml`](../examples/services.ml) has the four parties over
-cohttp-lwt-unix. The gateway's handler is the pattern to copy:
-
-```ocaml
-match received with
-(* The encapsulation is still on: answer in the clear, with a 4xx. *)
-| Error e -> refuse e
-(* It is off: from here on, every answer goes back sealed. *)
-| Ok (inner, context) ->
-    let* response =
-      match inner with
-      | Ok request -> ask_target ~targets request
-      | Error response -> Lwt.return response
-    in
-    ...
-```
-
-`dune build @e2e` runs them in one process. They are also separate programs:
+cohttp-lwt-unix, through `ohttp-cohttp-lwt`. `dune build @e2e` runs them in
+one process. They are also separate programs:
 
 ```sh
 opam install cohttp-lwt-unix
@@ -88,10 +214,3 @@ The relay and the gateway are demonstrations, not servers to deploy: see
 [Security](../SECURITY.md). Without cohttp-lwt-unix the same programs build as
 stubs that say what is missing, so that the rest of the repository builds
 anywhere.
-
-## Why there is no adapter package yet
-
-An installable `ohttp-cohttp`, with a ready-made `call` through a relay, is a
-small step from `services.ml`. It waits until the interfaces here have settled,
-since a package is harder to change than an example. If you write the same few
-lines for another library, they are welcome as an example.

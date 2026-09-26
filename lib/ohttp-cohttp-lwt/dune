@@ -1,0 +1,13 @@
+(library
+ (name ohttp_cohttp_lwt)
+ (public_name ohttp-cohttp-lwt)
+ (libraries
+  ohttp
+  ohttp-cohttp
+  bhttp
+  cohttp-lwt
+  http
+  lwt
+  mirage-crypto-rng
+  unix
+  uri))

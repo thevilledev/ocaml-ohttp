@@ -1,0 +1,32 @@
+opam-version: "2.0"
+synopsis: "Oblivious HTTP (RFC 9458) for the types of the http package"
+description: """
+Conversions between the messages of the http package, which cohttp,
+cohttp-lwt, and cohttp-eio share, and those of bhttp, with the routing of a
+gateway's resources and of its targets. The adapters ohttp-cohttp-lwt and
+ohttp-cohttp-eio are built on it.
+"""
+maintainer: ["Ville Vesilehto <ville@vesilehto.fi>"]
+authors: ["Ville Vesilehto <ville@vesilehto.fi>"]
+license: "ISC"
+tags: ["ohttp" "rfc9458" "oblivious http" "http" "cohttp"]
+homepage: "https://github.com/thevilledev/ocaml-ohttp"
+bug-reports: "https://github.com/thevilledev/ocaml-ohttp/issues"
+dev-repo: "git+https://github.com/thevilledev/ocaml-ohttp.git"
+x-maintenance-intent: ["(latest)"]
+depends: [
+  "ocaml" {>= "4.14"}
+  "dune" {>= "3.12"}
+  "bhttp" {= version}
+  "ohttp" {= version}
+  "http" {>= "6.0.0"}
+  "uri" {>= "4.0.0"}
+  "alcotest" {with-test & >= "1.7.0"}
+  "odoc" {with-doc}
+]
+build: [
+  ["dune" "subst"] {dev}
+  ["dune" "build" "-p" name "-j" jobs]
+  ["dune" "runtest" "-p" name "-j" jobs] {with-test}
+  ["dune" "build" "@doc" "-p" name "-j" jobs] {with-doc}
+]

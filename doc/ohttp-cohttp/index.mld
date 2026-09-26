@@ -1,0 +1,11 @@
+{0 ohttp-cohttp}
+
+Conversions between the messages of the [http] package, which cohttp,
+cohttp-lwt, and cohttp-eio share, and those of [bhttp], with the routing of a
+gateway's resources and of its targets. [ohttp-cohttp-lwt] and
+[ohttp-cohttp-eio] are built on it.
+
+{!modules: Ohttp_cohttp}
+
+See the {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/doc/http-libraries.md}HTTP libraries}
+guide.

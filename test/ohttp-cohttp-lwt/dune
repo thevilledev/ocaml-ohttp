@@ -1,0 +1,18 @@
+(test
+ (name test_ohttp_cohttp_lwt)
+ (package ohttp-cohttp-lwt)
+ (libraries
+  ohttp
+  ohttp-cohttp-lwt
+  bhttp
+  hpke
+  cohttp-lwt
+  cohttp-lwt-unix
+  http
+  lwt
+  lwt.unix
+  uri
+  unix
+  mirage-crypto-rng
+  mirage-crypto-rng.unix
+  alcotest))

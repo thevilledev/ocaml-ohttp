@@ -3,19 +3,19 @@
  (modules basic)
  (libraries ohttp bhttp mirage-crypto-rng.unix))
 
-; The rest shows Oblivious HTTP over a real HTTP library. The packages do not
-; depend on one, so this library is optional: it is built only where
-; cohttp-lwt-unix is installed.
+; The rest shows Oblivious HTTP over a real HTTP library, through the
+; ohttp-cohttp-lwt package. ohttp and bhttp do not depend on one, so this
+; library is optional: it is built only where cohttp-lwt-unix is installed.
 
 (library
  (name example_services)
- (modules cohttp_adapter services main)
+ (modules services main)
  (optional)
  (libraries
   ohttp
+  ohttp-cohttp-lwt
   bhttp
   hpke
-  cohttp
   cohttp-lwt
   cohttp-lwt-unix
   http

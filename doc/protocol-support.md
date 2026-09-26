@@ -103,7 +103,9 @@ incrementally.
 
 ## Application responsibilities and gaps
 
-- **Carrying the messages.** See [HTTP libraries](http-libraries.md).
+- **Carrying the messages.** The adapter packages do it over cohttp-lwt,
+  cohttp-eio, and Piaf, and `Ohttp.Service` is what an adapter for another
+  library wraps. See [HTTP libraries](http-libraries.md).
 - **Key configurations.** Fetching them over an authenticated channel, giving
   every client the same ones, and rotating them (RFC 9458 Sections 6.1 and 7).
 - **Replay.** Checking each request that is not idempotent with
@@ -111,9 +113,14 @@ incrementally.
   checks their `date` field, and answers with the `date` problem type (Section
   6.5). The cache lives in one process; a gateway that runs on several
   machines needs to share it.
-- **The relay.** Nothing here is a relay beyond the example. A real one has
-  the duties of Section 6.2.
-- **Targets.** A gateway decides which targets it serves.
+- **The relay.** The adapters' relay handlers pass on the content and its type
+  and nothing else. A deployed relay has the other duties of Section 6.2 too,
+  such as limits and traffic analysis defences.
+- **Targets.** A gateway decides which targets it serves. The adapters forward
+  only to the authorities that the gateway lists, and refuse the rest with a
+  sealed 403.
+- **Limits.** The adapters read each message in full and do not limit its
+  size, or the rate of requests.
 - **Padding.** Available on request, never applied by default.
 
 ## Verification

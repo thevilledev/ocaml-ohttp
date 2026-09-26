@@ -28,6 +28,14 @@ cd ocaml-ohttp
 opam install .
 ```
 
+`opam install .` installs every package of the checkout, the adapters for
+HTTP libraries included, and the Eio adapters need OCaml 5. To install only
+what you use, name the packages:
+
+```sh
+opam install ./bhttp.opam ./ohttp.opam ./ohttp-cohttp.opam ./ohttp-cohttp-lwt.opam
+```
+
 If you only want to build and run the examples in the checkout, use
 `opam install . --deps-only` instead. `bhttp` has no dependencies, and
 `opam install ./bhttp.opam` installs it alone. For test and documentation
@@ -38,7 +46,8 @@ dependencies, follow the [development setup](development.md#setup).
 Once the packages have been accepted:
 
 ```sh
-opam install ohttp   # brings in bhttp
+opam install ohttp              # brings in bhttp
+opam install ohttp-cohttp-lwt   # or ohttp-cohttp-eio, or ohttp-piaf
 ```
 
 ## Run the example
@@ -76,6 +85,34 @@ ok    an unknown key is refused in the clear, with a 400
 
 [HTTP libraries](http-libraries.md) walks through that code, and shows the
 separate programs.
+
+## Use it with an HTTP library
+
+The adapter packages do the HTTP for each party. Over cohttp-lwt-unix, a
+gateway for one target, and a client that calls it through a relay:
+
+```ocaml
+module Ohttp_client = Ohttp_cohttp_lwt.Make (Cohttp_lwt_unix.Client)
+
+let gateway =
+  Ohttp_cohttp_lwt.Gateway.handler
+    (Ohttp.Service.Gateway.create ~rng
+       ~replay:(Ohttp.Replay.create ~tolerance:60. ~capacity:100_000 ())
+       (Result.get_ok (Ohttp.Gateway.create [ key ])))
+    (Ohttp_client.Target.forward
+       ~targets:[ ("example.com", Uri.of_string "https://example.com") ])
+
+let call config =
+  Ohttp_client.Client.call ~rng
+    ~relay:(Uri.of_string "https://relay.example/relay")
+    config
+    (Bhttp.Request.make ~meth:"GET" ~authority:"example.com" ~path:"/" ())
+```
+
+[HTTP libraries](http-libraries.md) has the same for cohttp-eio and Piaf, the
+relay, and what the adapters leave to the application. The rest of this guide
+uses `ohttp` directly, which is what an application does with a library that
+has no adapter.
 
 ## Use it in a Dune project
 
@@ -218,8 +255,8 @@ implementation reads.
 
 ## Next steps
 
-- [HTTP libraries](http-libraries.md): cohttp, and how little another library
-  needs.
+- [HTTP libraries](http-libraries.md): the adapters for cohttp-lwt,
+  cohttp-eio, and Piaf, and what another library needs.
 - [Protocol support](protocol-support.md): what is implemented, and what is
   left to the application.
 - The API reference: `opam exec -- dune build @doc`, then open
