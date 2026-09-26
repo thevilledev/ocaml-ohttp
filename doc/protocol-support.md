@@ -34,21 +34,59 @@ message has to fit in memory, including one that arrives in chunks.
 | HTTP binding | Media types, the fields of each message, the checks on what comes back, the two classes of error, and the `ohttp-key` problem type (Section 5), without I/O |
 | Informational responses | A `100-continue` expectation is refused by the client and answered with an encapsulated 417 by the gateway (Section 5.1) |
 | Discovery | The well-known path and the `Accept` field of RFC 9540. DNS records are out of scope |
+| Replay | A cache of the encapsulated keys of recent requests, the check of their `date` field in the three formats of RFC 9110, and the `date` problem type through which a client corrects its clock (Section 6.5) |
 
 ### Algorithms
 
-Every combination that the `hpke` package provides: 36 suites.
+Every combination that the `hpke` package provides: 99 suites.
 
 | Kind | Identifiers |
 | --- | --- |
-| KEM | `0x0010` DHKEM(P-256, HKDF-SHA256), `0x0011` DHKEM(P-384, HKDF-SHA384), `0x0012` DHKEM(P-521, HKDF-SHA512), `0x0020` DHKEM(X25519, HKDF-SHA256) |
+| KEM, Diffie-Hellman | `0x0010` DHKEM(P-256, HKDF-SHA256), `0x0011` DHKEM(P-384, HKDF-SHA384), `0x0012` DHKEM(P-521, HKDF-SHA512), `0x0020` DHKEM(X25519, HKDF-SHA256), `0x0021` DHKEM(X448, HKDF-SHA512) |
+| KEM, post-quantum/traditional hybrid | `0x647a` MLKEM768-X25519 (X-Wing), `0x0050` MLKEM768-P256, `0x0051` MLKEM1024-P384 |
+| KEM, post-quantum | `0x0040` ML-KEM-512, `0x0041` ML-KEM-768, `0x0042` ML-KEM-1024 |
 | KDF | `0x0001` HKDF-SHA256, `0x0002` HKDF-SHA384, `0x0003` HKDF-SHA512 |
 | AEAD | `0x0001` AES-128-GCM, `0x0002` AES-256-GCM, `0x0003` ChaCha20Poly1305 |
 
 RFC 9458 mandates none of them. DHKEM(X25519, HKDF-SHA256) with HKDF-SHA256
 and AES-128-GCM is what deployed gateways accept, and is what a key offers
-first by default. X448 (`0x0021`) waits for `hpke`; a configuration that names
-it is skipped.
+first by default.
+
+### Post-quantum KEMs
+
+An Oblivious HTTP request is sealed once, to the gateway's public key, and
+anyone who records it can open it on the day that key is broken. A KEM that
+resists a quantum computer protects recorded requests against that day.
+
+- **Use X-Wing** (MLKEM768-X25519, `0x647a`) unless there is a reason to choose
+  another. A hybrid stays as strong as its elliptic-curve half if ML-KEM turns
+  out weaker than believed, and X-Wing is the hybrid that other
+  implementations provide: [ohttp-go](interoperability.md), through CIRCL,
+  exchanges requests with this library under it. Of the pure ML-KEM KEMs,
+  draft-ietf-hpke-pq prefers ML-KEM-768 and ML-KEM-1024 to ML-KEM-512.
+- **They cost bytes.** An X-Wing key configuration is about 1.2 KB, and the
+  encapsulated key that starts every request is 1120 bytes, against 32 for
+  X25519. A response is no larger.
+- **They follow drafts.** The KEMs are those of draft-ietf-hpke-pq-05, which
+  is not yet an RFC. The encodings of keys and ciphertexts are those of FIPS
+  203 and are not expected to change; the derivation of a key pair from a seed
+  may. CIRCL already derives X-Wing keys from a seed differently, so a
+  configuration derived from the same seed on each side differs, although
+  keys and exchanges interoperate.
+- **Only what a client picks protects it.** A client that chooses an X25519
+  configuration gets none of this. A gateway can serve an X-Wing key beside an
+  X25519 one, with a key identifier each, while clients move over. Every client
+  must still be served the same configurations (Sections 6.1 and 7), or the
+  choice itself tells them apart.
+- **Not the SHAKE KDFs.** draft-ietf-hpke-pq also defines the one-stage KDFs
+  SHAKE128 (`0x0010`) and SHAKE256 (`0x0011`). RFC 9458 derives the key and
+  nonce of a response with the `Extract` and `Expand` of the suite's KDF
+  (Section 4.4), which a one-stage KDF does not have, and no specification says
+  how Oblivious HTTP should use one. A configuration that offers them is read
+  and re-encoded as it came, and they are never chosen.
+- **Not X25519Kyber768Draft00** (`0x0030`), the Kyber of the NIST
+  competition, which ML-KEM replaced. ohttp-go and CIRCL still know it; a
+  configuration that names it is skipped.
 
 ## Chunked Oblivious HTTP (experimental)
 
@@ -68,9 +106,11 @@ incrementally.
 - **Carrying the messages.** See [HTTP libraries](http-libraries.md).
 - **Key configurations.** Fetching them over an authenticated channel, giving
   every client the same ones, and rotating them (RFC 9458 Sections 6.1 and 7).
-- **Replay.** Remembering the encapsulated keys of recent requests, and
-  checking the `Date` field of a request (Section 6.5). There are no helpers
-  for either yet, nor for the `date` problem type.
+- **Replay.** Checking each request that is not idempotent with
+  `Ohttp.Replay`, which remembers the encapsulated keys of recent requests,
+  checks their `date` field, and answers with the `date` problem type (Section
+  6.5). The cache lives in one process; a gateway that runs on several
+  machines needs to share it.
 - **The relay.** Nothing here is a relay beyond the example. A real one has
   the duties of Section 6.2.
 - **Targets.** A gateway decides which targets it serves.

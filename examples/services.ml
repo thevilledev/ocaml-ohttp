@@ -56,7 +56,22 @@ let ask_target ~targets (request : Bhttp.Request.t) =
           prerr_endline ("no answer from the target: " ^ Printexc.to_string e);
           Lwt.return (Bhttp.Response.make ~status:504 ()))
 
-let gateway ~rng ~targets gateway (request : Http.Request.t) body =
+(* Replay: the gateway remembers the encapsulated keys of the requests it
+   served, and refuses one whose date is too far from its clock, so that it
+   need not remember them for long (RFC 9458 Section 6.5). Only requests that
+   are not idempotent need this; the example checks every request. *)
+
+let unreplayed ~replay context request =
+  let now = Unix.gettimeofday () in
+  match
+    Ohttp.Replay.check replay ~now
+      ~enc:(Ohttp.Gateway.encapsulated_key context)
+      request
+  with
+  | Ok () -> Ok request
+  | Error rejection -> Error (Ohttp.Replay.rejection_response ~now rejection)
+
+let gateway ~rng ~replay ~targets gateway (request : Http.Request.t) body =
   let refuse e =
     let r = Ohttp.Http_binding.Gateway.error_response e in
     respond ~status:r.status ~headers:r.headers r.body
@@ -82,7 +97,7 @@ let gateway ~rng ~targets gateway (request : Http.Request.t) body =
       (* It is off: from here on, every answer goes back sealed. *)
       | Ok (inner, context) -> (
           let* response =
-            match inner with
+            match Result.bind inner (unreplayed ~replay context) with
             | Ok request -> ask_target ~targets request
             | Error response -> Lwt.return response
           in
@@ -144,10 +159,7 @@ let fetch_key_configs uri =
        ~headers:(Http.Header.to_list response.headers))
     (fun () -> Ohttp.Key_config.decode_list content)
 
-let call ~rng ~relay_uri config request =
-  let*? encapsulated, context =
-    Lwt.return (Ohttp.Http_message.encapsulate_request ~rng config request)
-  in
+let post ~relay_uri context encapsulated =
   let* response, body =
     Client.post
       ~headers:(Http.Header.of_list Ohttp.Http_binding.Client.request_headers)
@@ -160,3 +172,27 @@ let call ~rng ~relay_uri config request =
        ~status:(Http.Status.to_int response.status)
        ~headers:(Http.Header.to_list response.headers))
     (fun () -> Ohttp.Http_message.decapsulate_response context content)
+
+(* The request goes with the client's date. If the gateway finds it too far
+   from its own, it says so with its time, and the request is sent once more,
+   encapsulated anew, with a date that its clock would give. [clock] is the
+   client's clock, which a test can set wrong. *)
+let call ~rng ?(clock = Unix.gettimeofday) ~relay_uri config
+    (request : Bhttp.Request.t) =
+  let send offset =
+    let dated =
+      {
+        request with
+        headers =
+          Ohttp.Replay.date_field ~now:(clock () +. offset) :: request.headers;
+      }
+    in
+    let*? encapsulated, context =
+      Lwt.return (Ohttp.Http_message.encapsulate_request ~rng config dated)
+    in
+    post ~relay_uri context encapsulated
+  in
+  let*? response = send 0. in
+  match Ohttp.Replay.date_of_problem response with
+  | Some gateway_time -> send (gateway_time -. clock ())
+  | None -> Lwt.return (Ok response)

@@ -28,9 +28,9 @@ jobs:
         with:
           ocaml-compiler: ${{ matrix.ocaml }}
           dune-cache: true
-      # ohttp needs hpke 0.2.0, which is not on opam yet. Remove this pin once
-      # it is released.
-      - run: opam pin add hpke.0.2.0 git+https://github.com/thevilledev/ocaml-hpke.git#main --no-action
+      # ohttp needs hpke 0.4.0, whose release candidate is not on opam. Remove
+      # this pin once hpke 0.4.0 is released.
+      - run: opam pin add hpke.0.4.0~rc1 git+https://github.com/thevilledev/ocaml-hpke.git#v0.4.0-rc1 --no-action
       - run: opam install . --deps-only --with-test --with-doc
       - run: opam exec -- dune build @all @doc
       - run: opam exec -- dune runtest
@@ -46,7 +46,7 @@ jobs:
           ocaml-compiler: "5.4"
           dune-cache: true
       - run: opam lint bhttp.opam ohttp.opam
-      - run: opam pin add hpke.0.2.0 git+https://github.com/thevilledev/ocaml-hpke.git#main --no-action
+      - run: opam pin add hpke.0.4.0~rc1 git+https://github.com/thevilledev/ocaml-hpke.git#v0.4.0-rc1 --no-action
       # Each package must build and pass its tests without the other's sources.
       - run: opam install ./bhttp.opam --with-test
       - run: opam install ./ohttp.opam --with-test
@@ -74,7 +74,7 @@ jobs:
         with:
           ocaml-compiler: "5.4"
           dune-cache: true
-      - run: opam pin add hpke.0.2.0 git+https://github.com/thevilledev/ocaml-hpke.git#main --no-action
+      - run: opam pin add hpke.0.4.0~rc1 git+https://github.com/thevilledev/ocaml-hpke.git#v0.4.0-rc1 --no-action
       - run: opam install . --deps-only --with-test
       - run: opam exec -- dune build --profile fuzz fuzz/fuzz_bhttp.exe fuzz/fuzz_ohttp.exe
       - run: opam exec -- _build/default/fuzz/fuzz_bhttp.exe --repeat 2000 --seed 9292
@@ -93,7 +93,7 @@ jobs:
         with:
           ocaml-compiler: "5.4"
           dune-cache: true
-      - run: opam pin add hpke.0.2.0 git+https://github.com/thevilledev/ocaml-hpke.git#main --no-action
+      - run: opam pin add hpke.0.4.0~rc1 git+https://github.com/thevilledev/ocaml-hpke.git#v0.4.0-rc1 --no-action
       - run: opam install . --deps-only
       - run: opam install cohttp-lwt-unix
       - run: opam exec -- dune build ./examples
@@ -114,8 +114,8 @@ jobs:
           dune-cache: true
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
-      - run: opam pin add hpke.0.2.0 git+https://github.com/thevilledev/ocaml-hpke.git#main --no-action
+          go-version: "1.25"
+      - run: opam pin add hpke.0.4.0~rc1 git+https://github.com/thevilledev/ocaml-hpke.git#v0.4.0-rc1 --no-action
       - run: opam install . --deps-only --with-test
       - run: opam exec -- dune build ./tools/differential/differential.exe
       - run: cd tools/differential/go && go build -o ../../../go-peer .

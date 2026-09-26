@@ -101,6 +101,8 @@ let decapsulate ?(labels = Encapsulation.bhttp_labels) t encapsulated =
   in
   Ok (request, { suite; enc; secret })
 
+let encapsulated_key { enc; _ } = enc
+
 let encapsulate ~rng { suite; enc; secret } response =
   let response_nonce =
     Mirage_crypto_rng.generate ~g:rng (Suite.response_nonce_length suite.aead)

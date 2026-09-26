@@ -24,7 +24,17 @@ val default_symmetric : symmetric list
     DHKEM(X25519, HKDF-SHA256), is what deployed gateways accept. *)
 
 val all_kems : Hpke.Kem.id list
+(** Every KEM of the [hpke] package: the Diffie-Hellman KEMs of RFC 9180, then
+    the post-quantum/traditional hybrids and ML-KEM of [draft-ietf-hpke-pq].
+    Of the post-quantum ones, MLKEM768-X25519 (X-Wing) is the one to use unless
+    there is a reason to choose another: a hybrid stays as strong as its
+    elliptic-curve half if ML-KEM falls. *)
+
 val all_symmetric : symmetric list
+(** Every KDF and AEAD pair of RFC 9180. The one-stage SHAKE KDFs of
+    [draft-ietf-hpke-pq] are not among them: RFC 9458 derives the response keys
+    with [Extract] and [Expand], which a one-stage KDF does not have. *)
+
 val hpke : t -> Hpke.Suite.encryption Hpke.Suite.t
 
 val response_nonce_length : Hpke.Aead.id -> int

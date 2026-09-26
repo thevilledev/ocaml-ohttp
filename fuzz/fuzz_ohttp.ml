@@ -1,8 +1,8 @@
 (* Crowbar fuzzing of everything in Oblivious HTTP that reads a peer's bytes:
-   key configurations, encapsulated requests, and encapsulated responses. None
-   of it may raise, and a key configuration that decodes must encode to the
-   bytes it came from. Build with [dune build --profile fuzz
-   fuzz/fuzz_ohttp.exe]. *)
+   key configurations, encapsulated requests and responses, and dates. None of
+   it may raise, a key configuration that decodes must encode to the bytes it
+   came from, and a date that parses must format to one that parses to the same
+   time. Build with [dune build --profile fuzz fuzz/fuzz_ohttp.exe]. *)
 
 open Crowbar
 open Ohttp
@@ -152,4 +152,14 @@ let () =
       | exception e ->
           fail
             (Printf.sprintf "Media_type.matches raised %s"
+               (Printexc.to_string e)));
+  add_test ~name:"date" [ bytes; float ] (fun input now ->
+      match Replay.Date.parse ~now input with
+      | None -> ()
+      | Some t ->
+          check_eq ~pp:Format.pp_print_float t
+            (Option.get (Replay.Date.parse (Replay.Date.format t)))
+      | exception e ->
+          fail
+            (Printf.sprintf "Replay.Date.parse raised %s"
                (Printexc.to_string e)))

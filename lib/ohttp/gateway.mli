@@ -74,6 +74,11 @@ val decapsulate :
     is {!Error.Decapsulation_failed}. All of them are answered without
     encapsulation (RFC 9458 Section 5.2). *)
 
+val encapsulated_key : response_context -> string
+(** The encapsulated key of the request that a context answers: what
+    {!Replay.check} remembers. It is fresh for every request that a client
+    makes, and the same for every copy of one. *)
+
 (** {1 Building blocks}
 
     What {!decapsulate} is made of, for other encapsulations under the same

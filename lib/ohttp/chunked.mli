@@ -112,6 +112,11 @@ module Gateway : sig
   (** The receiver for the request. Its errors are those of
       {!Ohttp.Gateway.decapsulate}. *)
 
+  val encapsulated_key : request -> string option
+  (** The encapsulated key of the request, once its header has been received:
+      what {!Replay.check} remembers. Check it after the first chunk has been
+      opened, which proves that the key is the client's. *)
+
   val response :
     rng:Mirage_crypto_rng.g ->
     ?max_chunk_size:int ->

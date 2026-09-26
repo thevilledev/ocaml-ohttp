@@ -1,4 +1,4 @@
 (library
  (name ohttp)
  (public_name ohttp)
- (libraries bhttp hpke mirage-crypto-rng))
+ (libraries bhttp hpke mirage-crypto-rng digestif))

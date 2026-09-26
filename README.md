@@ -12,8 +12,8 @@ is a string, and any HTTP library can post it.
 
 > **Status:** unaudited and not production-ready. Intended for interoperability
 > review. Read the [security limitations](SECURITY.md) before using the
-> libraries. `ohttp` needs `hpke` 0.2.0, which is not on opam yet; see
-> [getting started](doc/getting-started.md#install).
+> libraries. `ohttp` needs `hpke` 0.4.0, whose release candidate is not on
+> opam; see [getting started](doc/getting-started.md#install).
 
 ## Try it
 
@@ -45,7 +45,10 @@ project.
   informational responses, trailers, padding, and truncation. No dependencies.
 - `ohttp`: key configurations in both of their encodings, and request and
   response encapsulation for clients and gateways, over every KEM, KDF, and
-  AEAD of the [`hpke`](https://github.com/thevilledev/ocaml-hpke) package.
+  AEAD of the [`hpke`](https://github.com/thevilledev/ocaml-hpke) package,
+  including X-Wing and the other post-quantum KEMs.
+- Replay protection for gateways: a cache of recent requests, the `date`
+  check, and the `date` problem through which clients correct their clocks.
 - The fields, checks, and error responses of the HTTP binding (RFC 9458
   Section 5), without I/O, and [examples](examples/) over cohttp.
 - Chunked Oblivious HTTP
@@ -56,7 +59,7 @@ project.
   implementations of the RFC's authors, checked in both roles.
 
 Applications fetch and authenticate key configurations, carry the messages,
-and defend against replay. See [protocol support](doc/protocol-support.md) for
+and decide which requests to check for replay. See [protocol support](doc/protocol-support.md) for
 the exact feature set and known gaps.
 
 ## Documentation

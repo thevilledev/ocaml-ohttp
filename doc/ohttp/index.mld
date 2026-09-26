@@ -27,7 +27,9 @@ A gateway holds {!Ohttp.Gateway.Key} values in a {!Ohttp.Gateway.t}, serves
 {!Ohttp.Gateway.encoded_key_configs}, and answers a request with
 {!Ohttp.Http_message.decapsulate_request},
 {!Ohttp.Http_message.encapsulate_response}, and, when the encapsulation cannot
-be removed, {!Ohttp.Http_binding.Gateway.val-error_response}.
+be removed, {!Ohttp.Http_binding.Gateway.val-error_response}. A gateway that
+serves requests that are not idempotent also checks each one with
+{!Ohttp.Replay.check}.
 
 {!Ohttp.Client} and {!Ohttp.Gateway} do the same for byte strings that are not
 Binary HTTP. {!Ohttp.Chunked} is an experimental implementation of chunked
@@ -38,8 +40,9 @@ change.
 
 {2 Application interface}
 
-{!modules: Ohttp.Key_config Ohttp.Http_message Ohttp.Http_binding Ohttp.Client
-Ohttp.Gateway Ohttp.Chunked Ohttp.Suite Ohttp.Media_type Ohttp.Error}
+{!modules: Ohttp.Key_config Ohttp.Http_message Ohttp.Http_binding Ohttp.Replay
+Ohttp.Client Ohttp.Gateway Ohttp.Chunked Ohttp.Suite Ohttp.Media_type
+Ohttp.Error}
 
 {2 Protocol internals}
 

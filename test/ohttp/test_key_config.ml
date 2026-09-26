@@ -40,6 +40,12 @@ let raw ?(key_id = 7) ?(kem_id = 0x0020)
      ]
     @ List.map (fun (kdf, aead) -> u16 kdf ^ u16 aead) symmetric)
 
+(* X25519Kyber768Draft00 (0x0030), which ohttp-go and CIRCL know, and [hpke]
+   does not: the Kyber of the NIST competition's third round, which ML-KEM
+   replaced. Its public key is 1216 bytes. *)
+let kyber_draft ~key_id =
+  raw ~key_id ~kem_id:0x0030 ~public_key:(String.make 1216 '\x01') [ (1, 1) ]
+
 let test_create () =
   let c = config Hpke.Kem.X25519 in
   Alcotest.(check int) "key identifier" 7 (Key_config.key_id c);
@@ -159,9 +165,8 @@ let test_invalid () =
     "trailing byte" true
     (invalid (Key_config.decode (valid ^ "\000")));
   Alcotest.check config_result "unknown KEM"
-    (Error (Error.Unsupported_kem 0x0021))
-    (Key_config.decode
-       (raw ~kem_id:0x0021 ~public_key:(String.make 56 '\x01') [ (1, 1) ]));
+    (Error (Error.Unsupported_kem 0x0030))
+    (Key_config.decode (kyber_draft ~key_id:7));
   let with_length n = String.sub valid 0 35 ^ u16 n ^ String.make n '\001' in
   List.iter
     (fun n ->
@@ -193,6 +198,62 @@ let test_invalid () =
 
 let prefixed encoded = u16 (String.length encoded) ^ encoded
 
+(* The one-stage SHAKE KDFs of draft-ietf-hpke-pq (0x0010 and 0x0011) have no
+   Extract and Expand, which the response of RFC 9458 Section 4.4 needs, so a
+   configuration that offers them is read, and they are never chosen. *)
+let test_one_stage_kdfs () =
+  let encoded = raw [ (0x0010, 0x0001); (0x0011, 0x0003); (0x0001, 0x0001) ] in
+  let c = ok (Key_config.decode encoded) in
+  check_bytes "encodes to the same bytes" encoded (Key_config.encode c);
+  Alcotest.(check bool)
+    "only the HKDF pair is provided" true
+    (Key_config.symmetric c
+    = [ { kdf = Hpke.Kdf.Hkdf_sha256; aead = Hpke.Aead.Aes_128_gcm } ]);
+  Alcotest.(check bool)
+    "nothing else to select" true
+    (Result.is_error
+       (Key_config.select (ok (Key_config.decode (raw [ (0x0010, 0x0001) ])))))
+
+(* Post-quantum keys are more than a kilobyte, which a configuration and the
+   length prefix of a list both carry. *)
+let test_post_quantum () =
+  List.iter
+    (fun (kem, size) ->
+      Alcotest.(check int)
+        (Format.asprintf "%a public key" Hpke.Kem.pp kem)
+        size
+        (String.length (Hpke.Public_key.to_bytes (public_key kem))))
+    Hpke.Kem.
+      [
+        (X448, 56);
+        (Mlkem768_x25519, 1216);
+        (Mlkem768_p256, 1249);
+        (Mlkem1024_p384, 1665);
+        (Mlkem768, 1184);
+      ];
+  let configs =
+    List.mapi
+      (fun key_id kem -> config ~key_id ~symmetric:Suite.all_symmetric kem)
+      Suite.all_kems
+  in
+  Alcotest.check configs_result "a list of every KEM" (Ok configs)
+    (Key_config.decode_list (Key_config.encode_list configs));
+  let xwing = Key_config.encode (config Hpke.Kem.Mlkem768_x25519) in
+  (* An ML-KEM encapsulation key whose coefficients are 4095, beyond the
+     modulus: FIPS 203 has it rejected, and with it the whole list. *)
+  let beyond_modulus =
+    raw ~key_id:8 ~kem_id:0x0041
+      ~public_key:(String.make 1184 '\xff')
+      [ (1, 1) ]
+  in
+  Alcotest.(check bool)
+    "an ML-KEM key beyond the modulus" true
+    (invalid (Key_config.decode beyond_modulus));
+  Alcotest.(check bool)
+    "discards the list that holds it" true
+    (invalid
+       (Key_config.decode_list (prefixed xwing ^ prefixed beyond_modulus)))
+
 let test_list () =
   let a = config ~key_id:1 Hpke.Kem.X25519
   and b = config ~key_id:2 ~symmetric:Suite.all_symmetric Hpke.Kem.P256 in
@@ -211,18 +272,16 @@ let test_list () =
     "a configuration is not a list" true
     (Result.is_error (Key_config.decode_list (Key_config.encode a)));
   (* The length prefix is what lets a client step over a KEM it does not know,
-     such as X448 here. *)
-  let x448 =
-    raw ~key_id:3 ~kem_id:0x0021 ~public_key:(String.make 56 '\x01') [ (1, 1) ]
-  in
+     such as X25519Kyber768Draft00 here. *)
+  let unknown = kyber_draft ~key_id:3 in
   Alcotest.check configs_result "an unknown KEM is skipped"
     (Ok [ a; b ])
     (Key_config.decode_list
        (prefixed (Key_config.encode a)
-       ^ prefixed x448
+       ^ prefixed unknown
        ^ prefixed (Key_config.encode b)));
   Alcotest.check configs_result "even when nothing else is left" (Ok [])
-    (Key_config.decode_list (prefixed x448));
+    (Key_config.decode_list (prefixed unknown));
   check_bytes "an empty list encodes to nothing" "" (Key_config.encode_list [])
 
 let test_invalid_list () =
@@ -257,6 +316,8 @@ let tests =
     Alcotest.test_case "round trip" `Quick test_round_trip;
     Alcotest.test_case "unknown symmetric algorithms" `Quick
       test_unknown_symmetric;
+    Alcotest.test_case "one-stage KDFs" `Quick test_one_stage_kdfs;
+    Alcotest.test_case "post-quantum KEMs" `Quick test_post_quantum;
     Alcotest.test_case "invalid configurations" `Quick test_invalid;
     Alcotest.test_case "lists" `Quick test_list;
     Alcotest.test_case "invalid lists" `Quick test_invalid_list;

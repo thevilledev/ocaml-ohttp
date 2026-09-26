@@ -2,4 +2,4 @@
 
 (library
  (name ohttp_test_support)
- (libraries ohttp hpke mirage-crypto-rng))
+ (libraries ohttp hpke mlkem mirage-crypto-rng))
