@@ -1,0 +1,12 @@
+{0 ohttp-cohttp-lwt}
+
+Oblivious HTTP over cohttp-lwt: a client that fetches key configurations and
+calls through a relay, a relay, a gateway with replay protection, and
+forwarding to targets over HTTP or in the same process. The client side is a
+functor over any client of cohttp-lwt.
+
+{!modules: Ohttp_cohttp_lwt}
+
+See the {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/doc/http-libraries.md}HTTP libraries}
+guide, and the {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/SECURITY.md}security policy}
+for what the adapters leave to the application.

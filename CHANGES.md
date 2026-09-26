@@ -28,6 +28,21 @@
   messages, and the fields, checks, and error responses of RFC 9458 Section 5,
   without I/O. Examples over cohttp-lwt-unix show a client, a relay, a gateway,
   and a target, and run end to end with `dune build @e2e`.
+- Add `Ohttp.Service`: the client, relay, and gateway of RFC 9458 Section 5 as
+  steps from HTTP messages to HTTP messages, without I/O. The client adds a
+  `date` field and retries once, encapsulated anew, with the gateway's time
+  when the gateway refuses its date; the relay passes on the content and its
+  type and nothing else; the gateway serves its key configurations, checks for
+  replay, forwards only to the targets it lists, and seals every answer once
+  the encapsulation is off.
+- Add adapters for HTTP libraries, one package each, built on `Ohttp.Service`:
+  `ohttp-cohttp-lwt` for any client of cohttp-lwt, with targets in the same
+  process; `ohttp-cohttp-eio`; and `ohttp-piaf`, over HTTP/1.1 and HTTP/2.
+  Each has a client that fetches key configurations and calls through a relay,
+  a relay handler, a gateway handler, and forwarding to targets. `ohttp-cohttp`
+  has the conversions between the types of the `http` package and those of
+  `bhttp` that the two cohttp adapters share. The cohttp examples now use
+  `ohttp-cohttp-lwt`.
 - Add `Ohttp.Chunked`, an experimental implementation of chunked Oblivious HTTP
   (draft-ietf-ohai-chunked-ohttp-08): incremental senders and receivers for
   requests and responses, which take a stream in whatever slices a transport

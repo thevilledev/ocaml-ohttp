@@ -1,0 +1,13 @@
+(library
+ (name ohttp_cohttp_eio)
+ (public_name ohttp-cohttp-eio)
+ (libraries
+  ohttp
+  ohttp-cohttp
+  bhttp
+  cohttp-eio
+  eio
+  http
+  mirage-crypto-rng
+  unix
+  uri))

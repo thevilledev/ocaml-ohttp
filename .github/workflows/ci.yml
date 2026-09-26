@@ -21,6 +21,7 @@ permissions:
 # Dependencies come from the opam files only, the hpke release candidate
 # included: ohttp.opam pins it with pin-depends until hpke 0.4.0 is on opam.
 jobs:
+  # The Eio adapters need OCaml 5, so the oldest compiler builds the rest.
   test:
     name: OCaml ${{ matrix.ocaml-compiler }}
     runs-on: avrea-ubuntu-latest
@@ -28,7 +29,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ocaml-compiler: ["4.14", "5.4"]
+        include:
+          - ocaml-compiler: "4.14"
+            packages: bhttp,ohttp,ohttp-cohttp,ohttp-cohttp-lwt
+          - ocaml-compiler: "5.4"
+            packages: bhttp,ohttp,ohttp-cohttp,ohttp-cohttp-lwt,ohttp-cohttp-eio,ohttp-piaf
+    env:
+      PACKAGES: ${{ matrix.packages }}
     steps:
       - name: Check out the source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -40,9 +47,9 @@ jobs:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
           dune-cache: true
       - name: Install dependencies
-        run: opam install . --deps-only --with-test --with-doc
+        run: opam install $(echo "$PACKAGES" | sed 's/[^,]*/.\/&.opam/g; s/,/ /g') --deps-only --with-test --with-doc
       - name: Build, test, and build documentation
-        run: opam exec -- dune build @all @runtest @doc
+        run: opam exec -- dune build --only-packages "$PACKAGES" @all @runtest @doc
 
   packaging:
     name: opam packages
@@ -59,17 +66,24 @@ jobs:
           ocaml-compiler: "5.4"
           dune-cache: true
       - name: Lint the opam packages
-        run: opam lint bhttp.opam ohttp.opam
-      # Each package must build and pass its tests without the other's sources.
+        run: opam lint *.opam
+      # Each package must build and pass its tests with only the packages it
+      # depends on installed.
       - name: Install bhttp from its package definition
         run: opam install ./bhttp.opam --with-test
       - name: Install ohttp from its package definition
         run: opam install ./ohttp.opam --with-test
+      - name: Install the adapters from their package definitions
+        run: |
+          opam install ./ohttp-cohttp.opam --with-test
+          opam install ./ohttp-cohttp-lwt.opam --with-test
+          opam install ./ohttp-cohttp-eio.opam --with-test
+          opam install ./ohttp-piaf.opam --with-test
 
   # The dev setup brings ocamlformat and cohttp-lwt-unix. The examples need an
-  # HTTP library, which the packages do not depend on. Without one they build
-  # as stubs that explain themselves, so ask the end-to-end run to fail if that
-  # is what it turns out to be.
+  # HTTP library, which ohttp and bhttp do not depend on. Without one they
+  # build as stubs that explain themselves, so ask the end-to-end run to fail if
+  # that is what it turns out to be.
   hygiene:
     name: Formatting and examples
     runs-on: avrea-ubuntu-latest
@@ -110,7 +124,7 @@ jobs:
           ocaml-compiler: "5.4"
           dune-cache: true
       - name: Install test dependencies
-        run: opam install . --deps-only --with-test
+        run: opam install ./bhttp.opam ./ohttp.opam --deps-only --with-test
       - name: Compile the fuzz targets
         run: opam exec -- dune build --profile fuzz fuzz/fuzz_bhttp.exe fuzz/fuzz_ohttp.exe
       # --repeat counts runs of each test. doc/development.md has the longer
@@ -142,7 +156,7 @@ jobs:
           go-version-file: tools/differential/go/go.mod
           cache-dependency-path: tools/differential/go/go.sum
       - name: Install test dependencies
-        run: opam install . --deps-only --with-test
+        run: opam install ./bhttp.opam ./ohttp.opam --deps-only --with-test
       - name: Build the driver
         run: opam exec -- dune build ./tools/differential/differential.exe
       - name: Build the Go peer

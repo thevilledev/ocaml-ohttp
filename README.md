@@ -8,7 +8,9 @@ carries, Binary HTTP ([RFC 9292](https://www.rfc-editor.org/rfc/rfc9292.html)),
 and is a package of its own.
 
 Neither is an HTTP library, and neither depends on one. An encapsulated message
-is a string, and any HTTP library can post it.
+is a string, and any HTTP library can post it. Adapter packages carry the
+messages over cohttp-lwt, cohttp-eio, and Piaf, as a client, a relay, and a
+gateway.
 
 > **Status:** unaudited and not production-ready. Intended for interoperability
 > review. Read the [security limitations](SECURITY.md) before using the
@@ -34,8 +36,8 @@ client received 200: hello from the target
 ```
 
 With `cohttp-lwt-unix` installed, `opam exec -- dune build @e2e` runs a client,
-a relay, a gateway, and a target over real HTTP on your machine. Read the
-[example source](examples/basic.ml) and the
+a relay, a gateway, and a target over real HTTP on your machine, through the
+`ohttp-cohttp-lwt` adapter. Read the [example source](examples/basic.ml) and the
 [getting started guide](doc/getting-started.md) to use the libraries in your own
 project.
 
@@ -50,7 +52,14 @@ project.
 - Replay protection for gateways: a cache of recent requests, the `date`
   check, and the `date` problem through which clients correct their clocks.
 - The fields, checks, and error responses of the HTTP binding (RFC 9458
-  Section 5), without I/O, and [examples](examples/) over cohttp.
+  Section 5), and `Ohttp.Service`: the client, relay, and gateway as steps
+  from HTTP messages to HTTP messages, without I/O.
+- [Adapters](doc/http-libraries.md) for HTTP libraries, each a package of its
+  own: `ohttp-cohttp-lwt`, `ohttp-cohttp-eio`, and `ohttp-piaf`, with
+  `ohttp-cohttp` for the types that the cohttp adapters share. Each has a
+  client that fetches key configurations and calls through a relay, a relay
+  handler, a gateway handler with replay protection, and forwarding to an
+  allowlist of targets.
 - Chunked Oblivious HTTP
   ([draft-ietf-ohai-chunked-ohttp-08](https://datatracker.ietf.org/doc/draft-ietf-ohai-chunked-ohttp/)),
   experimental.
@@ -58,8 +67,8 @@ project.
   [interoperability](doc/interoperability.md) with the Go and Rust
   implementations of the RFC's authors, checked in both roles.
 
-Applications fetch and authenticate key configurations, carry the messages,
-and decide which requests to check for replay. See [protocol support](doc/protocol-support.md) for
+Applications authenticate key configurations, limit the size and rate of
+requests, and decide which requests to check for replay. See [protocol support](doc/protocol-support.md) for
 the exact feature set and known gaps.
 
 ## Documentation
@@ -67,7 +76,7 @@ the exact feature set and known gaps.
 | I want to… | Start here |
 | --- | --- |
 | Install the libraries and understand the example | [Getting started](doc/getting-started.md) |
-| Use them with cohttp, or with another HTTP library | [HTTP libraries](doc/http-libraries.md) |
+| Use them with cohttp, Piaf, or another HTTP library | [HTTP libraries](doc/http-libraries.md) |
 | Check supported features and algorithms | [Protocol support](doc/protocol-support.md) |
 | See how other implementations compare | [Interoperability](doc/interoperability.md) |
 | Build, test, or find a module | [Development guide](doc/development.md) |

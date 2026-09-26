@@ -1,0 +1,17 @@
+(test
+ (name test_ohttp_cohttp_eio)
+ (package ohttp-cohttp-eio)
+ (libraries
+  ohttp
+  ohttp-cohttp-eio
+  bhttp
+  hpke
+  cohttp-eio
+  eio
+  eio_main
+  http
+  uri
+  unix
+  mirage-crypto-rng
+  mirage-crypto-rng.unix
+  alcotest))

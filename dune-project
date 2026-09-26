@@ -19,3 +19,23 @@
  (description
   "An implementation of Oblivious HTTP (RFC 9458): key configurations, and request and response encapsulation for clients and gateways, over the hpke package. It performs no I/O, so any HTTP library can carry the messages.")
  (tags (cryptography privacy ohttp rfc9458 "oblivious http" hpke)))
+
+(package
+ (name ohttp-cohttp)
+ (synopsis "Oblivious HTTP (RFC 9458) for the types of the http package")
+ (tags (ohttp rfc9458 "oblivious http" http cohttp)))
+
+(package
+ (name ohttp-cohttp-lwt)
+ (synopsis "Oblivious HTTP (RFC 9458) clients, relays, and gateways over cohttp-lwt")
+ (tags (ohttp rfc9458 "oblivious http" cohttp lwt)))
+
+(package
+ (name ohttp-cohttp-eio)
+ (synopsis "Oblivious HTTP (RFC 9458) clients, relays, and gateways over cohttp-eio")
+ (tags (ohttp rfc9458 "oblivious http" cohttp eio)))
+
+(package
+ (name ohttp-piaf)
+ (synopsis "Oblivious HTTP (RFC 9458) clients, relays, and gateways over Piaf")
+ (tags (ohttp rfc9458 "oblivious http" piaf eio)))

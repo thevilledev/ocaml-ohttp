@@ -1,0 +1,4 @@
+(library
+ (name ohttp_piaf)
+ (public_name ohttp-piaf)
+ (libraries ohttp bhttp piaf eio eio.unix mirage-crypto-rng unix uri))

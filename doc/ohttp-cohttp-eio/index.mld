@@ -1,0 +1,11 @@
+{0 ohttp-cohttp-eio}
+
+Oblivious HTTP over cohttp-eio: a client that fetches key configurations and
+calls through a relay, a relay, a gateway with replay protection, and
+forwarding to targets.
+
+{!modules: Ohttp_cohttp_eio}
+
+See the {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/doc/http-libraries.md}HTTP libraries}
+guide, and the {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/SECURITY.md}security policy}
+for what the adapters leave to the application.

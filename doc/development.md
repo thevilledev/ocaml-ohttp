@@ -16,17 +16,28 @@ opam install . --deps-only --with-test --with-doc --with-dev-setup
 Without `cohttp-lwt-unix` the examples over HTTP build as stubs that say what
 is missing, and with it as programs.
 
+`opam install .` installs the dependencies of every package, the adapters for
+HTTP libraries included, and `ohttp-cohttp-eio` and `ohttp-piaf` need OCaml 5.
+On OCaml 4.14, name the packages that it can build:
+
+```sh
+opam install ./bhttp.opam ./ohttp.opam ./ohttp-cohttp.opam ./ohttp-cohttp-lwt.opam \
+  --deps-only --with-test
+opam exec -- dune build --only-packages bhttp,ohttp,ohttp-cohttp,ohttp-cohttp-lwt
+```
+
 ```sh
 opam exec -- dune build @all
 opam exec -- dune runtest
 ```
 
-The libraries support OCaml 4.14 and later. To check both ends of that range
-with two switches:
+The libraries support OCaml 4.14 and later, apart from the Eio adapters. To
+check both ends of that range with two switches:
 
 ```sh
-opam exec --switch 4.14.4 -- dune build --build-dir _build_414 @all
-opam exec --switch 4.14.4 -- dune runtest --build-dir _build_414
+PACKAGES=bhttp,ohttp,ohttp-cohttp,ohttp-cohttp-lwt
+opam exec --switch 4.14.4 -- dune build --build-dir _build_414 --only-packages $PACKAGES @all
+opam exec --switch 4.14.4 -- dune runtest --build-dir _build_414 --only-packages $PACKAGES
 ```
 
 ## API documentation
@@ -49,9 +60,12 @@ the RFC that it implements.
 | `bhttp`: `rfc9292` | The four encodings of Section 5, in both directions |
 | `ohttp`: `key_config`, `encapsulation`, `http binding` | Both encodings of a key configuration, every suite, and every way of breaking an exchange |
 | `ohttp`: `replay` | HTTP dates in their three formats, the replay cache, and a client correcting its clock through the `date` problem |
+| `ohttp`: `service` | The client, relay, and gateway of `Ohttp.Service`: what each sends, what it answers in the clear and sealed, the retry with the gateway's time, and the targets a gateway refuses |
 | `ohttp`: `rfc9458`, `chunked` | Appendix A of the RFC and of the chunked draft, byte for byte in both directions, with every intermediate value |
 | `upstream vectors`, `differential` | What ohttp-go and the Rust crates produced, replayed without them |
 | `properties` | QCheck: round trips, prefixes, corrupted input, and slicing of chunked streams |
+| `ohttp-cohttp` | The conversions between the types of the `http` package and those of `bhttp` |
+| `ohttp-cohttp-lwt`, `ohttp-cohttp-eio`, `ohttp-piaf` | A client, a relay, a gateway, and a target over loopback, through each adapter: a call, targets that are refused or do not answer, a wrong clock, an unknown key, and requests that the relay and the gateway refuse |
 
 Known-answer tests need two things that a library must not offer in
 production. The gateway's direction needs a chosen response nonce, which
@@ -105,14 +119,16 @@ opam exec -- dune fmt               # fix
 | Path | Purpose |
 | --- | --- |
 | `lib/bhttp/`, `lib/ohttp/` | Interfaces (`.mli`) and implementations (`.ml`) of the two packages |
-| `examples/` | `basic.ml`, and a client, relay, gateway, and target over cohttp |
+| `lib/ohttp-cohttp/`, `lib/ohttp-cohttp-lwt/`, `lib/ohttp-cohttp-eio/`, `lib/ohttp-piaf/` | The adapters for HTTP libraries, one package each |
+| `examples/` | `basic.ml`, and a client, relay, gateway, and target over cohttp-lwt-unix |
 | `test/bhttp/`, `test/ohttp/` | The test programs, each with a `support/` library that `tools/` shares |
+| `test/ohttp-cohttp*/`, `test/ohttp-piaf/` | The test program of each adapter |
 | `test/vectors/` | Pinned fixtures, the recorded differential corpus, and provenance |
 | `fuzz/` | Crowbar targets |
 | `tools/extract_rfc_vectors.py` | Extracts the fixtures from RFC text |
 | `tools/differential/` | The differential driver and its Go and Rust peers |
 | `doc/` | These guides, and the odoc landing page of each package |
-| `bhttp.opam`, `ohttp.opam` | Package metadata, written by hand |
+| `*.opam` | Package metadata, written by hand |
 
 ### Module map
 
@@ -121,16 +137,22 @@ opam exec -- dune fmt               # fix
 | `bhttp` | Messages | `Request`, `Response`, `Message`, `Field` |
 | `bhttp` | Encoding | `Framing`, `Varint`, `Wire` (private), `Hex`, `Error` |
 | `ohttp` | Application interface | `Key_config`, `Http_message`, `Http_binding`, `Replay`, `Media_type`, `Error` |
+| `ohttp` | The parties, as steps between HTTP messages | `Service` |
 | `ohttp` | Exchanges of byte strings | `Client`, `Gateway`, `Suite` |
 | `ohttp` | Byte layout and key schedule, as pure functions | `Encapsulation` |
 | `ohttp` | Chunked Oblivious HTTP | `Chunked` |
+| `ohttp-cohttp` | Conversions for the types of the `http` package | `Ohttp_cohttp` |
+| `ohttp-cohttp-lwt`, `ohttp-cohttp-eio`, `ohttp-piaf` | Client, relay, gateway, and targets over each library | `Ohttp_cohttp_lwt`, `Ohttp_cohttp_eio`, `Ohttp_piaf` |
 
 Every test stanza names its package, and the two support libraries depend on
-one package each, so that `dune build -p bhttp` never needs `ohttp`.
+one package each, so that `dune build -p bhttp` never needs `ohttp`. An adapter
+depends on `ohttp`, `bhttp`, and its HTTP library, and nothing else of this
+repository but `ohttp-cohttp` for the two cohttp adapters.
 
 ## CI and packaging
 
-`.github/workflows/ci.yml` builds and tests on OCaml 4.14 and 5.4, installs
-each package alone with its tests, checks formatting, runs the fuzzers with
-their fixed seeds, builds and runs the examples with cohttp installed, and runs
-the differential driver against the Go peer.
+`.github/workflows/ci.yml` builds and tests on OCaml 4.14, without the Eio
+adapters, and on 5.4, with every package. It installs each package from its
+opam file with its tests, checks formatting, runs the fuzzers with their fixed
+seeds, builds and runs the examples with cohttp installed, and runs the
+differential driver against the Go peer.

@@ -1,0 +1,4 @@
+(test
+ (name test_ohttp_cohttp)
+ (package ohttp-cohttp)
+ (libraries ohttp ohttp-cohttp bhttp http uri alcotest))

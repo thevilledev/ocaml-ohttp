@@ -31,6 +31,11 @@ be removed, {!Ohttp.Http_binding.Gateway.val-error_response}. A gateway that
 serves requests that are not idempotent also checks each one with
 {!Ohttp.Replay.check}.
 
+{!Ohttp.Service} puts these steps together for each party, as functions from
+the HTTP message that a client, a relay, or a gateway receives to the one that
+it sends. The adapter packages [ohttp-cohttp-lwt], [ohttp-cohttp-eio], and
+[ohttp-piaf] wrap it for their HTTP libraries.
+
 {!Ohttp.Client} and {!Ohttp.Gateway} do the same for byte strings that are not
 Binary HTTP. {!Ohttp.Chunked} is an experimental implementation of chunked
 Oblivious HTTP (draft-ietf-ohai-chunked-ohttp-08), and its interface may
@@ -41,8 +46,8 @@ change.
 {2 Application interface}
 
 {!modules: Ohttp.Key_config Ohttp.Http_message Ohttp.Http_binding Ohttp.Replay
-Ohttp.Client Ohttp.Gateway Ohttp.Chunked Ohttp.Suite Ohttp.Media_type
-Ohttp.Error}
+Ohttp.Service Ohttp.Client Ohttp.Gateway Ohttp.Chunked Ohttp.Suite
+Ohttp.Media_type Ohttp.Error}
 
 {2 Protocol internals}
 
@@ -51,7 +56,7 @@ Ohttp.Error}
 {1 Guides}
 
 - {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/doc/getting-started.md}Getting started}: installation and the runnable example.
-- {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/doc/http-libraries.md}HTTP libraries}: carrying the messages with cohttp, or with anything else.
+- {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/doc/http-libraries.md}HTTP libraries}: the adapters for cohttp-lwt, cohttp-eio, and Piaf, and carrying the messages with anything else.
 - {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/doc/protocol-support.md}Protocol support}: features, algorithms, and known gaps.
 - {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/doc/interoperability.md}Interoperability}: how other implementations compare.
 - {{:https://github.com/thevilledev/ocaml-ohttp/blob/main/doc/development.md}Development}: building, testing, and the module map.

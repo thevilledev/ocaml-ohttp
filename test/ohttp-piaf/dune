@@ -1,0 +1,16 @@
+(test
+ (name test_ohttp_piaf)
+ (package ohttp-piaf)
+ (libraries
+  ohttp
+  ohttp-piaf
+  bhttp
+  hpke
+  piaf
+  eio
+  eio_main
+  uri
+  unix
+  mirage-crypto-rng
+  mirage-crypto-rng.unix
+  alcotest))

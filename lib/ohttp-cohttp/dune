@@ -1,0 +1,4 @@
+(library
+ (name ohttp_cohttp)
+ (public_name ohttp-cohttp)
+ (libraries ohttp bhttp http uri))
