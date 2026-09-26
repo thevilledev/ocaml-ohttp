@@ -31,8 +31,9 @@ let key =
 
 let config = Ohttp.Gateway.Key.config key
 
-let post ?(content = "") ?(authority = "target.example") () =
-  Bhttp.Request.make ~meth:"POST" ~authority ~path:"/submit?x=1" ~content ()
+let post ?(content = "") ?(authority = "target.example") ?(path = "/submit?x=1")
+    () =
+  Bhttp.Request.make ~meth:"POST" ~authority ~path ~content ()
 
 let fail e = Alcotest.failf "%a" O.pp_error e
 
@@ -74,10 +75,51 @@ let () =
               ]))
   in
   let relay =
-    local (listen (O.Relay.handler env ~gateway:(local gateway "/gateway"))) "/"
+    local
+      (listen
+         (O.Relay.handler env
+            (Ohttp.Service.Relay.create ())
+            ~gateway:(local gateway "/gateway")))
+      "/"
   in
-  let call ?now ?(config = config) request =
+  (* Room for a short request, one at a time, and a short answer. A request for
+     /wait resolves [entered], and holds the one place until [release] is. *)
+  let entered, entered_r = Eio.Promise.create () in
+  let release, release_r = Eio.Promise.create () in
+  let strict_gateway =
+    let forward =
+      O.Target.forward ~max_response_size:16 env
+        ~targets:[ ("target.example", local target_port "") ]
+    in
+    local
+      (listen
+         (O.Gateway.handler
+            (Ohttp.Service.Gateway.create ~rng ~max_request_size:256
+               ~max_in_flight:1
+               (Result.get_ok (Ohttp.Gateway.create [ key ])))
+            (fun (request : Bhttp.Request.t) ->
+              if request.path = "/wait" then (
+                ignore (Eio.Promise.try_resolve entered_r ());
+                Eio.Promise.await release;
+                Bhttp.Response.make ~status:200 ())
+              else forward request)))
+      "/gateway"
+  in
+  let strict_relay =
+    local
+      (listen
+         (O.Relay.handler env
+            (Ohttp.Service.Relay.create ~max_request_size:256
+               ~max_response_size:16 ())
+            ~gateway:(local gateway "/gateway")))
+      "/"
+  in
+  let call ?now ?(relay = relay) ?(config = config) request =
     O.Client.call env ~rng ?now ~relay config request
+  in
+  let unexpected status = function
+    | Error (`Ohttp (Ohttp.Error.Unexpected_status s)) -> s = status
+    | _ -> false
   in
   let test_key_configs () =
     match
@@ -135,6 +177,74 @@ let () =
       "elsewhere on the gateway" 404
       (status_of (local gateway "/other"))
   in
+  (* The status of a POST of [chunks] as an Encapsulated Request, sent without a
+     content-length, so that only counting can find it too long. *)
+  let post_chunks uri chunks =
+    Eio.Switch.run @@ fun sw ->
+    match
+      Piaf.Client.Oneshot.post ~sw env
+        ~headers:Ohttp.Http_binding.Client.request_headers
+        ~body:
+          (let stream, push = Piaf.Stream.create (List.length chunks) in
+           List.iter (fun chunk -> push (Some chunk)) chunks;
+           push None;
+           Piaf.Body.of_string_stream stream)
+        uri
+    with
+    | Ok response ->
+        ignore (Piaf.Body.drain response.body);
+        Piaf.Status.to_code response.status
+    | Error e -> Alcotest.failf "%a" Piaf.Error.pp_hum e
+  in
+  let test_request_size () =
+    let long = post ~content:(String.make 1000 'x') () in
+    Alcotest.(check bool)
+      "a gateway refuses it in the clear" true
+      (unexpected 413 (call ~relay:strict_gateway long));
+    Alcotest.(check bool)
+      "a relay refuses it" true
+      (unexpected 413 (call ~relay:strict_relay long));
+    Alcotest.(check int)
+      "a gateway counts what is not declared" 413
+      (post_chunks strict_gateway (List.init 10 (fun _ -> String.make 100 'x')));
+    Alcotest.(check int)
+      "a relay too" 413
+      (post_chunks strict_relay (List.init 10 (fun _ -> String.make 100 'x')));
+    Alcotest.(check int)
+      "what fits is read" 400
+      (post_chunks strict_gateway [ String.make 200 'x'; String.make 56 'x' ]);
+    Alcotest.(check int)
+      "one byte more is not" 413
+      (post_chunks strict_gateway [ String.make 200 'x'; String.make 57 'x' ])
+  in
+  let test_response_size () =
+    (match
+       O.Client.call ~max_response_size:16 env ~rng ~relay config (post ())
+     with
+    | Error (`Ohttp (Ohttp.Error.Content_too_large 16)) -> ()
+    | _ -> Alcotest.fail "a client refuses a long answer");
+    Alcotest.(check int)
+      "a gateway seals a 502 for a target's long answer" 502
+      (status (call ~relay:strict_gateway (post ())));
+    Alcotest.(check bool)
+      "a relay answers a gateway's long answer with a 502" true
+      (unexpected 502 (call ~relay:strict_relay (post ())))
+  in
+  let test_in_flight () =
+    let wait () = call ~relay:strict_gateway (post ~path:"/wait" ()) in
+    Eio.Fiber.both
+      (fun () ->
+        Alcotest.(check int) "the first is answered" 200 (status (wait ())))
+      (fun () ->
+        Eio.Promise.await entered;
+        (* A second request that is let in waits for good. *)
+        Alcotest.(check bool)
+          "one too many" true
+          (unexpected 503
+             (Eio.Time.with_timeout_exn (Eio.Stdenv.clock env) 5. wait));
+        Eio.Promise.resolve release_r ());
+    Alcotest.(check int) "and its place is free again" 200 (status (wait ()))
+  in
   Alcotest.run ~and_exit:false "ohttp-piaf"
     [
       ( "end to end",
@@ -145,6 +255,12 @@ let () =
           Alcotest.test_case "a wrong clock" `Quick test_wrong_clock;
           Alcotest.test_case "an unknown key" `Quick test_unknown_key;
           Alcotest.test_case "refusals" `Quick test_refusals;
+        ] );
+      ( "limits",
+        [
+          Alcotest.test_case "request size" `Quick test_request_size;
+          Alcotest.test_case "response size" `Quick test_response_size;
+          Alcotest.test_case "requests in flight" `Quick test_in_flight;
         ] );
     ];
   List.iter Piaf.Server.Command.shutdown !servers

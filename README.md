@@ -59,7 +59,8 @@ project.
   `ohttp-cohttp` for the types that the cohttp adapters share. Each has a
   client that fetches key configurations and calls through a relay, a relay
   handler, a gateway handler with replay protection, and forwarding to an
-  allowlist of targets.
+  allowlist of targets, all with limits on the length of messages and on the
+  requests in flight.
 - Chunked Oblivious HTTP
   ([draft-ietf-ohai-chunked-ohttp-08](https://datatracker.ietf.org/doc/draft-ietf-ohai-chunked-ohttp/)),
   experimental.
@@ -67,8 +68,8 @@ project.
   [interoperability](doc/interoperability.md) with the Go and Rust
   implementations of the RFC's authors, checked in both roles.
 
-Applications authenticate key configurations, limit the size and rate of
-requests, and decide which requests to check for replay. See [protocol support](doc/protocol-support.md) for
+Applications authenticate key configurations, limit the rate of requests, and
+decide which requests to check for replay. See [protocol support](doc/protocol-support.md) for
 the exact feature set and known gaps.
 
 ## Documentation

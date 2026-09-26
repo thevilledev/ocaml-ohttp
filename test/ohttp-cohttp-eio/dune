@@ -7,6 +7,7 @@
   bhttp
   hpke
   cohttp-eio
+  cstruct
   eio
   eio_main
   http

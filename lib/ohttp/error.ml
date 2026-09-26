@@ -11,6 +11,7 @@ type t =
   | Unsupported_suite of { kem : int; kdf : int; aead : int }
   | Decapsulation_failed
   | Chunk_too_large of int
+  | Content_too_large of int
   | Bhttp of Bhttp.Error.t
   | Continue_expectation
   | Method_not_allowed of string
@@ -32,6 +33,8 @@ let to_string = function
         kdf aead
   | Decapsulation_failed -> "decapsulation failed"
   | Chunk_too_large n -> Printf.sprintf "chunk of %d bytes is too large" n
+  | Content_too_large n ->
+      Printf.sprintf "the content is longer than %d bytes" n
   | Bhttp e -> "binary http error: " ^ Bhttp.Error.to_string e
   | Continue_expectation -> "a 100-continue expectation cannot be encapsulated"
   | Method_not_allowed meth ->

@@ -9,6 +9,47 @@ type response = Http_binding.Gateway.error_response = {
   body : string;
 }
 
+let default_max_request_size = 1 lsl 20
+let default_max_response_size = 8 lsl 20
+let default_max_in_flight = 256
+
+let limit name ~default = function
+  | None -> default
+  | Some n when n > 0 -> n
+  | Some _ -> invalid_arg ("Ohttp.Service: " ^ name ^ " must be positive")
+
+(* Only digits: a value that int_of_string would read otherwise, such as "0x10"
+   or "-1", is left to the count of what is read. *)
+let exceeds ~max_size headers =
+  List.exists
+    (fun (name, value) ->
+      String.lowercase_ascii name = "content-length"
+      &&
+      let value = String.trim value in
+      value <> ""
+      && String.for_all (function '0' .. '9' -> true | _ -> false) value
+      && (String.length value > 18 || int_of_string value > max_size))
+    headers
+
+let plain ?(headers = []) status = { status; headers; body = "" }
+let content_too_large = plain 413
+let busy = plain ~headers:[ ("retry-after", "1") ] 503
+
+(* The requests that a party is handling, which may run on several domains. *)
+module In_flight = struct
+  type t = { max : int; count : int Atomic.t }
+
+  let create max = { max; count = Atomic.make 0 }
+
+  let admit t =
+    Atomic.fetch_and_add t.count 1 < t.max
+    ||
+    (Atomic.decr t.count;
+     false)
+
+  let release t = Atomic.decr t.count
+end
+
 module Client = struct
   let key_configs ~status ~headers content =
     Result.bind (Http_binding.Client.check_key_config_response ~status ~headers)
@@ -86,7 +127,29 @@ module Client = struct
 end
 
 module Relay = struct
-  let plain ?(headers = []) status = { status; headers; body = "" }
+  type t = {
+    max_request_size : int;
+    max_response_size : int;
+    in_flight : In_flight.t;
+  }
+
+  let create ?max_request_size ?max_response_size ?max_in_flight () =
+    {
+      max_request_size =
+        limit "max_request_size" ~default:default_max_request_size
+          max_request_size;
+      max_response_size =
+        limit "max_response_size" ~default:default_max_response_size
+          max_response_size;
+      in_flight =
+        In_flight.create
+          (limit "max_in_flight" ~default:default_max_in_flight max_in_flight);
+    }
+
+  let max_request_size t = t.max_request_size
+  let max_response_size t = t.max_response_size
+  let admit t = In_flight.admit t.in_flight
+  let release t = In_flight.release t.in_flight
 
   let request ~meth ~headers content =
     match Http_binding.Gateway.check_request ~meth ~headers with
@@ -119,11 +182,30 @@ module Gateway = struct
     checks_replay : Bhttp.Request.t -> bool;
     framing : Bhttp.Framing.t option;
     padding : int option;
+    max_request_size : int;
+    in_flight : In_flight.t;
   }
 
   let create ~rng ?replay ?(checks_replay = fun _ -> true) ?framing ?padding
-      gateway =
-    { gateway; rng; replay; checks_replay; framing; padding }
+      ?max_request_size ?max_in_flight gateway =
+    {
+      gateway;
+      rng;
+      replay;
+      checks_replay;
+      framing;
+      padding;
+      max_request_size =
+        limit "max_request_size" ~default:default_max_request_size
+          max_request_size;
+      in_flight =
+        In_flight.create
+          (limit "max_in_flight" ~default:default_max_in_flight max_in_flight);
+    }
+
+  let max_request_size t = t.max_request_size
+  let admit t = In_flight.admit t.in_flight
+  let release t = In_flight.release t.in_flight
 
   let key_configs t =
     {
@@ -164,7 +246,9 @@ module Gateway = struct
   let receive t ~now ~meth ~headers content =
     let received =
       Result.bind (Http_binding.Gateway.check_request ~meth ~headers) (fun () ->
-          Http_message.decapsulate_request t.gateway content)
+          if String.length content > t.max_request_size then
+            Error (Error.Content_too_large t.max_request_size)
+          else Http_message.decapsulate_request t.gateway content)
     in
     match received with
     (* The encapsulation is still on: answer in the clear. *)

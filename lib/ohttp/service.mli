@@ -4,7 +4,7 @@
     Nothing here performs I/O. Each party is a function from what it received to
     what it sends, and the HTTP library in between does the sending: this is
     what the adapter packages [ohttp-cohttp-lwt], [ohttp-cohttp-eio], and
-    [ohttp-dream] wrap, and what an adapter for another library wraps too.
+    [ohttp-piaf] wrap, and what an adapter for another library wraps too.
 
     A message is its status, where it has one, its fields, and its content. The
     fields are pairs of a lowercase name and a value, and the content is read in
@@ -19,6 +19,38 @@ type response = Http_binding.Gateway.error_response = {
   headers : (string * string) list;
   body : string;
 }
+
+(** {1 Limits}
+
+    A relay and a gateway read each message in full before they act on it, so
+    what they hold at once grows with the length of each message and with the
+    number of requests that they handle together. Both are bounded, by default
+    with these values, and the adapters refuse what exceeds them without keeping
+    it. *)
+
+val default_max_request_size : int
+(** The longest request that a relay or a gateway reads: 1 MiB. *)
+
+val default_max_response_size : int
+(** The longest response that a client, a relay, or a gateway reads from its
+    peer: 8 MiB. *)
+
+val default_max_in_flight : int
+(** How many requests a relay or a gateway handles at once: 256. *)
+
+val exceeds : max_size:int -> (string * string) list -> bool
+(** [exceeds ~max_size headers] is whether the [content-length] field in
+    [headers] declares more than [max_size] bytes, so that the content can be
+    refused before it is read. A message without the field can still be too
+    long: its content must be counted as it is read. *)
+
+val content_too_large : response
+(** The answer to a request that is longer than a relay or a gateway accepts: a
+    413. *)
+
+val busy : response
+(** The answer to a request that arrives while a relay or a gateway handles as
+    many as it accepts: a 503, with [retry-after: 1]. *)
 
 (** A client: sends an Encapsulated Request to a relay, and opens the
     Encapsulated Response that comes back. *)
@@ -82,6 +114,37 @@ end
     back, and nothing that identifies the client (RFC 9458 Sections 5 and 6.2).
     It cannot read what it carries. *)
 module Relay : sig
+  type t
+  (** A relay's limits, and the requests that it is handling. *)
+
+  val create :
+    ?max_request_size:int ->
+    ?max_response_size:int ->
+    ?max_in_flight:int ->
+    unit ->
+    t
+  (** A relay that reads requests of at most [max_request_size] bytes from its
+      clients, and answers of at most [max_response_size] bytes from its
+      gateway, and handles at most [max_in_flight] requests at once. The
+      defaults are {!default_max_request_size}, {!default_max_response_size},
+      and {!default_max_in_flight}. Raises [Invalid_argument] unless each is
+      positive.
+
+      One relay is meant to serve every request: the requests in flight are
+      counted in it. *)
+
+  val max_request_size : t -> int
+  val max_response_size : t -> int
+
+  val admit : t -> bool
+  (** [admit relay] counts one more request in flight, and is [true], unless
+      [max_in_flight] are in flight already: then it is [false], and the request
+      is to be answered with {!busy}. Each [true] must be followed by one
+      {!release} once the request has been answered. Both are safe to call from
+      several domains. *)
+
+  val release : t -> unit
+
   val request :
     meth:string ->
     headers:(string * string) list ->
@@ -113,6 +176,8 @@ module Gateway : sig
     ?checks_replay:(Bhttp.Request.t -> bool) ->
     ?framing:Bhttp.Framing.t ->
     ?padding:int ->
+    ?max_request_size:int ->
+    ?max_in_flight:int ->
     Gateway.t ->
     t
   (** A gateway with the keys of a {!Ohttp.Gateway.t}.
@@ -124,7 +189,21 @@ module Gateway : sig
       requests, such as [GET], can leave those out (RFC 9458 Section 6.5).
 
       [rng] seals the responses, which [framing] and [padding] shape as with
-      {!Http_message.encapsulate_response}. *)
+      {!Http_message.encapsulate_response}.
+
+      The gateway reads Encapsulated Requests of at most [max_request_size]
+      bytes, and handles at most [max_in_flight] of them at once. The defaults
+      are {!default_max_request_size} and {!default_max_in_flight}. Raises
+      [Invalid_argument] unless both are positive. What a gateway reads from a
+      target is limited where it is read: see the [forward] functions of the
+      adapters. *)
+
+  val max_request_size : t -> int
+
+  val admit : t -> bool
+  (** As {!Relay.admit}, for the requests that a gateway receives. *)
+
+  val release : t -> unit
 
   val key_configs : t -> response
   (** The answer to a [GET] of {!Http_binding.well_known_gateway_path}: the key
@@ -167,7 +246,9 @@ module Gateway : sig
       the replay check.
 
       A request whose encapsulation cannot be removed is answered in the clear
-      with {!Http_binding.Gateway.val-error_response}. Once it is removed, every
+      with {!Http_binding.Gateway.val-error_response}, and so is one longer than
+      [max_request_size], with a 413. An adapter refuses that one as it reads
+      it; the check here is for those that do not. Once it is removed, every
       answer is sealed: a request that does not decode, that expects
       [100-continue], or that fails the replay check is answered with a
       [Respond] whose content is an Encapsulated Response. *)

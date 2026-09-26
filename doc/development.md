@@ -60,12 +60,12 @@ the RFC that it implements.
 | `bhttp`: `rfc9292` | The four encodings of Section 5, in both directions |
 | `ohttp`: `key_config`, `encapsulation`, `http binding` | Both encodings of a key configuration, every suite, and every way of breaking an exchange |
 | `ohttp`: `replay` | HTTP dates in their three formats, the replay cache, and a client correcting its clock through the `date` problem |
-| `ohttp`: `service` | The client, relay, and gateway of `Ohttp.Service`: what each sends, what it answers in the clear and sealed, the retry with the gateway's time, and the targets a gateway refuses |
+| `ohttp`: `service` | The client, relay, and gateway of `Ohttp.Service`: what each sends, what it answers in the clear and sealed, the retry with the gateway's time, the targets a gateway refuses, and its limits |
 | `ohttp`: `rfc9458`, `chunked` | Appendix A of the RFC and of the chunked draft, byte for byte in both directions, with every intermediate value |
 | `upstream vectors`, `differential` | What ohttp-go and the Rust crates produced, replayed without them |
 | `properties` | QCheck: round trips, prefixes, corrupted input, and slicing of chunked streams |
 | `ohttp-cohttp` | The conversions between the types of the `http` package and those of `bhttp` |
-| `ohttp-cohttp-lwt`, `ohttp-cohttp-eio`, `ohttp-piaf` | A client, a relay, a gateway, and a target over loopback, through each adapter: a call, targets that are refused or do not answer, a wrong clock, an unknown key, and requests that the relay and the gateway refuse |
+| `ohttp-cohttp-lwt`, `ohttp-cohttp-eio`, `ohttp-piaf` | A client, a relay, a gateway, and a target over loopback, through each adapter: a call, targets that are refused or do not answer, a wrong clock, an unknown key, requests that the relay and the gateway refuse, and messages beyond their limits, declared or counted, and requests beyond how many they handle at once |
 
 Known-answer tests need two things that a library must not offer in
 production. The gateway's direction needs a chosen response nonce, which
