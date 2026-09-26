@@ -8,14 +8,13 @@
 ```sh
 git clone https://github.com/thevilledev/ocaml-ohttp.git
 cd ocaml-ohttp
-opam pin add hpke.0.4.0~rc1 git+https://github.com/thevilledev/ocaml-hpke.git#v0.4.0-rc1 --no-action
-opam install . --deps-only --with-test --with-doc
-opam install ocamlformat.0.29.0
+opam install . --deps-only --with-test --with-doc --with-dev-setup
 ```
 
-The pin goes away once `hpke` 0.4.0 is on opam. `cohttp-lwt-unix` is optional:
-with it, the examples over HTTP are built as programs, and without it as stubs
-that say what is missing.
+`ohttp.opam` pins the `hpke` release candidate with `pin-depends` until `hpke`
+0.4.0 is on opam. The dev setup brings ocamlformat and `cohttp-lwt-unix`.
+Without `cohttp-lwt-unix` the examples over HTTP build as stubs that say what
+is missing, and with it as programs.
 
 ```sh
 opam exec -- dune build @all
