@@ -18,8 +18,7 @@ concurrency:
 permissions:
   contents: read
 
-# Dependencies come from the opam files only, the hpke release candidate
-# included: ohttp.opam pins it with pin-depends until hpke 0.4.0 is on opam.
+# Dependencies come from the opam files only.
 jobs:
   # The Eio adapters need OCaml 5, so the oldest compiler builds the rest.
   test:

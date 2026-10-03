@@ -14,9 +14,7 @@ Requirements: OCaml **4.14 or later**, opam with an active switch, and Dune
 **3.12 or later**. opam installs Dune and the dependencies as needed.
 
 `ohttp` needs `hpke` 0.4.0, for the post-quantum and hybrid KEMs, and runs
-only on 64-bit OCaml, as `hpke` does. Until 0.4.0 is on opam, `ohttp.opam`
-pins its release candidate with `pin-depends`, and opam fetches it when you
-install from a checkout.
+only on 64-bit OCaml, as `hpke` does.
 
 ### From source
 

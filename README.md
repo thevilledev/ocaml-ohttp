@@ -14,8 +14,7 @@ gateway.
 
 > **Status:** unaudited and not production-ready. Intended for interoperability
 > review. Read the [security limitations](SECURITY.md) before using the
-> libraries. `ohttp` needs `hpke` 0.4.0, whose release candidate is not on
-> opam; see [getting started](doc/getting-started.md#install).
+> libraries.
 
 ## Try it
 

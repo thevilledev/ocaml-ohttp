@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 — unreleased
+## 0.1.0 — 2026-10-03
 
 - Add `bhttp`, a codec for Binary HTTP (RFC 9292): known-length and
   indeterminate-length requests and responses, informational responses,
@@ -66,8 +66,7 @@
   X448 and X-Wing with ohttp-go included, and replay what they produced in the
   test suites.
 - Require `hpke` 0.4.0, for the post-quantum KEMs, the suite's KDF and AEAD,
-  and the deterministic senders of `hpke.for_testing`; until it is released,
-  its release candidate `0.4.0~rc1`. Like `hpke` since 0.3.0, `ohttp` needs a
-  64-bit OCaml. `bhttp` still has no dependencies.
+  and the deterministic senders of `hpke.for_testing`. Like `hpke` since
+  0.3.0, `ohttp` needs a 64-bit OCaml. `bhttp` still has no dependencies.
 - Remain an unaudited, non-production release intended for interoperability
   review.
