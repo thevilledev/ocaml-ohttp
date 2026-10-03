@@ -668,18 +668,29 @@ let tampering_cases g count (peer : Peer.t) =
 
 (* Binary HTTP *)
 
-(* A peer that keeps fields in a map returns them in its own order. *)
+(* Field names are compared without their case, which a peer may keep where
+   [Bhttp] lowercases them. A peer that keeps fields in a map returns them in
+   its own order. *)
 let normalize (peer : Peer.t) message =
-  if Peer.has peer "bhttp-field-order" then message
-  else
-    let sort fields = List.sort compare (Bhttp.Field.lowercase fields) in
-    match message with
-    | Bhttp.Message.Request r ->
-        Bhttp.Message.Request
-          { r with headers = sort r.headers; trailers = sort r.trailers }
-    | Bhttp.Message.Response r ->
-        Bhttp.Message.Response
-          { r with headers = sort r.headers; trailers = sort r.trailers }
+  let fields =
+    if Peer.has peer "bhttp-field-order" then Bhttp.Field.lowercase
+    else fun fields -> List.sort compare (Bhttp.Field.lowercase fields)
+  in
+  match message with
+  | Bhttp.Message.Request r ->
+      Bhttp.Message.Request
+        { r with headers = fields r.headers; trailers = fields r.trailers }
+  | Bhttp.Message.Response r ->
+      let informational (i : Bhttp.Response.informational) =
+        { i with headers = fields i.headers }
+      in
+      Bhttp.Message.Response
+        {
+          r with
+          informational = List.map informational r.informational;
+          headers = fields r.headers;
+          trailers = fields r.trailers;
+        }
 
 let record_message (peer : Peer.t) ~category ~encoded_by encoded message =
   if
