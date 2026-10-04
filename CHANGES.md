@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 — 2026-10-03
+## 0.1.0 — 2026-10-04
 
 - Add `bhttp`, a codec for Binary HTTP (RFC 9292): known-length and
   indeterminate-length requests and responses, informational responses,
