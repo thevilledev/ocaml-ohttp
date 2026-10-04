@@ -35,3 +35,5 @@ build: [
   ["dune" "runtest" "-p" name "-j" jobs] {with-test}
   ["dune" "build" "@doc" "-p" name "-j" jobs] {with-doc}
 ]
+# Piaf 0.2.0 does not build on Windows: its C stubs call fcntl.
+available: os != "win32"
