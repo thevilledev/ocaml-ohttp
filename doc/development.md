@@ -11,8 +11,7 @@ cd ocaml-ohttp
 opam install . --deps-only --with-test --with-doc --with-dev-setup
 ```
 
-`ohttp.opam` pins the `hpke` release candidate with `pin-depends` until `hpke`
-0.4.0 is on opam. The dev setup brings ocamlformat and `cohttp-lwt-unix`.
+The dev setup brings ocamlformat and `cohttp-lwt-unix`.
 Without `cohttp-lwt-unix` the examples over HTTP build as stubs that say what
 is missing, and with it as programs.
 

@@ -10,6 +10,21 @@ module Body = Cohttp_lwt.Body
 let () = Mirage_crypto_rng_unix.use_default ()
 let rng = Mirage_crypto_rng.default_generator ()
 
+(* opam's sandbox on macOS lets a build open no TCP socket, not even on the
+   loopback interface, and every test here needs one. *)
+let () =
+  match
+    let socket = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+    Fun.protect
+      ~finally:(fun () -> Unix.close socket)
+      (fun () -> Unix.bind socket (Unix.ADDR_INET (Unix.inet_addr_loopback, 0)))
+  with
+  | () -> ()
+  | exception Unix.Unix_error (((Unix.EPERM | Unix.EACCES) as e), _, _) ->
+      Printf.printf "Skipped: no TCP socket on the loopback interface: %s.\n"
+        (Unix.error_message e);
+      exit 0
+
 let free_port () =
   let socket = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
   Unix.bind socket (Unix.ADDR_INET (Unix.inet_addr_loopback, 0));

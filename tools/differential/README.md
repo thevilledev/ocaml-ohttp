@@ -27,7 +27,8 @@ A peer says what it can do in its answer to `hello`: the KEMs, KDFs, and AEADs
 it provides, and features such as `bhttp-indeterminate`, `bhttp-rich` (repeated
 fields, trailers, informational responses, any path), `bhttp-field-order`,
 `config-list`, `multi-suite-config`, and `chunked`. The driver gives each peer
-only what it can carry, and compares accordingly: a peer without
+only what it can carry, and compares accordingly: field names are compared
+without their case, which `bhttp` lowercases, and a peer without
 `bhttp-field-order` keeps fields in a map, so its fields are compared as a
 sorted list.
 
