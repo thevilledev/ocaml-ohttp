@@ -88,5 +88,5 @@ not production-ready. They are published for interoperability review.
 
 ## Reporting
 
-Report suspected vulnerabilities privately to <ville@vesilehto.fi> rather
+Report suspected vulnerabilities [privately to through Github](https://github.com/thevilledev/ocaml-ohttp/security) rather
 than through public issues.
