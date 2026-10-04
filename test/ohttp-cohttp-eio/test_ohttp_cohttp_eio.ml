@@ -74,15 +74,14 @@ let () =
       (Result.get_ok (Ohttp.Gateway.create [ key ]))
   in
   let target_base = listen target in
-  (* A target that is not listening: a port that was, and is closed. *)
-  let gone =
+  (* A target that is not listening: a port that was, and is closed once every
+     server has its own port, so that none of them can be given it. *)
+  let gone_socket, gone =
     let socket =
       Eio.Net.listen ~sw ~backlog:1 net (`Tcp (Eio.Net.Ipaddr.V4.loopback, 0))
     in
-    let addr = Eio.Net.listening_addr socket in
-    Eio.Net.close socket;
-    match addr with
-    | `Tcp (_, port) -> Printf.sprintf "http://127.0.0.1:%d" port
+    match Eio.Net.listening_addr socket with
+    | `Tcp (_, port) -> (socket, Printf.sprintf "http://127.0.0.1:%d" port)
     | `Unix _ -> assert false
   in
   let gateway =
@@ -135,6 +134,7 @@ let () =
             ~gateway:(local gateway "/gateway")))
       "/"
   in
+  Eio.Net.close gone_socket;
   let call ?now ?(relay = relay) ?(config = config) request =
     O.Client.call client ~rng ?now ~relay config request
   in
