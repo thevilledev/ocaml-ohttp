@@ -15,7 +15,7 @@ and an application picks the one for the library it already uses.
 | --- | --- | --- | --- | --- | --- |
 | `ohttp-cohttp-lwt` | cohttp-lwt 6: `cohttp-lwt-unix`, `cohttp-lwt-jsoo`, MirageOS | 4.14 | any cohttp-lwt client | ✓ | ✓, and targets in the same process |
 | `ohttp-cohttp-eio` | cohttp-eio 6 | 5.1 | ✓ | ✓ | ✓ |
-| `ohttp-piaf` | Piaf 0.2, HTTP/1.1 and HTTP/2 | 5.1 | ✓ | ✓ | ✓ |
+| `ohttp-piaf` | Piaf 0.2, HTTP/1.1 and HTTP/2, not on Windows | 5.1 | ✓ | ✓ | ✓ |
 | `ohttp-cohttp` | the types of the `http` package, which the two cohttp adapters share | 4.14 | | | |
 
 Each adapter has the same parts, over its library's types:

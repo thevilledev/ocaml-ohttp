@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1 — 2026-10-04
+
+Package metadata only; the code is that of 0.1.0.
+
+- Mark `ohttp-piaf` unavailable on Windows, where Piaf 0.2.0 does not build:
+  its C stubs call `fcntl`, which MinGW lacks.
+
 ## 0.1.0 — 2026-10-04
 
 - Add `bhttp`, a codec for Binary HTTP (RFC 9292): known-length and
