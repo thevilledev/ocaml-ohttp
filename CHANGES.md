@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.2 — 2026-10-04
+
+Fixes for the CI of opam-repository; the libraries are those of 0.1.1.
+
+- Mark the failure of `ohttp-piaf` on macOS with Homebrew as known to the CI of
+  opam-repository: Piaf 0.2.0 includes OpenSSL's headers without asking
+  pkg-config where they are, and Homebrew's are not on the compiler's path on
+  Apple silicon. The guide to HTTP libraries shows how to build it there.
+- Fix the tests of the adapters, which could start two servers on one port and
+  then exit in the middle of a run: each server now listens on a socket that
+  it holds from the start.
+
 ## 0.1.1 — 2026-10-04
 
 Package metadata only; the code is that of 0.1.0.

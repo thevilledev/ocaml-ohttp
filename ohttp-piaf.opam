@@ -37,3 +37,7 @@ build: [
 ]
 # Piaf 0.2.0 does not build on Windows: its C stubs call fcntl.
 available: os != "win32"
+# Nor, without help, with Homebrew on Apple silicon: its C stubs include the
+# OpenSSL headers without asking pkg-config where they are, and
+# /opt/homebrew/include is not searched by default.
+x-ci-accept-failures: ["macos-homebrew"]

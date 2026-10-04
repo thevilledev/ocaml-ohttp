@@ -25,25 +25,29 @@ let () =
         (Unix.error_message e);
       exit 0
 
-let free_port () =
+(* A socket bound to a port of the system's choosing on the loopback interface,
+   and the port. The socket stays open, so that nothing else can take the port:
+   a port that is chosen, released, and bound again later can be given to
+   another server in between, whose bind then fails. *)
+let bound () =
   let socket = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
   Unix.bind socket (Unix.ADDR_INET (Unix.inet_addr_loopback, 0));
-  let port =
-    match Unix.getsockname socket with
-    | Unix.ADDR_INET (_, port) -> port
-    | Unix.ADDR_UNIX _ -> assert false
-  in
-  Unix.close socket;
-  port
+  match Unix.getsockname socket with
+  | Unix.ADDR_INET (_, port) -> (socket, port)
+  | Unix.ADDR_UNIX _ -> assert false
 
 let local port path =
   Uri.of_string (Printf.sprintf "http://127.0.0.1:%d%s" port path)
 
-let serve port handler =
+(* A server, listening before this returns its port. *)
+let serve handler =
+  let socket, port = bound () in
+  Unix.listen socket 16;
   Lwt.async (fun () ->
       Server.create
-        ~mode:(`TCP (`Port port))
-        (Server.make ~callback:(fun _conn -> handler) ()))
+        ~mode:(`TCP (`Socket (Lwt_unix.of_unix_file_descr socket)))
+        (Server.make ~callback:(fun _conn -> handler) ()));
+  port
 
 (* An origin server that knows nothing about any of this. *)
 let target (request : Http.Request.t) body =
@@ -58,41 +62,42 @@ let target (request : Http.Request.t) body =
 let key =
   Result.get_ok (Ohttp.Gateway.Key.generate ~rng ~key_id:1 Hpke.Kem.X25519)
 
-let target_port = free_port ()
-let gateway_port = free_port ()
-let local_gateway_port = free_port ()
-let strict_gateway_port = free_port ()
-let relay_port = free_port ()
-let strict_relay_port = free_port ()
-let relay = local relay_port "/"
-let strict_relay = local strict_relay_port "/"
-
 (* A request to the strict gateway for this path waits until [release] is woken,
    after waking [entered]: it holds the gateway's one place. *)
 let entered, entered_u = Lwt.wait ()
 let release, release_u = Lwt.wait ()
 
-let () =
-  let service =
-    Ohttp.Service.Gateway.create ~rng
-      ~replay:(Ohttp.Replay.create ~tolerance:60. ~capacity:1000 ())
-      (Result.get_ok (Ohttp.Gateway.create [ key ]))
-  in
-  serve target_port target;
-  serve gateway_port
+let service =
+  Ohttp.Service.Gateway.create ~rng
+    ~replay:(Ohttp.Replay.create ~tolerance:60. ~capacity:1000 ())
+    (Result.get_ok (Ohttp.Gateway.create [ key ]))
+
+let target_port = serve target
+
+(* A port on which nothing listens, so that connections to it are refused. It
+   stays bound until every server has its own port. *)
+let gone_socket, gone_port = bound ()
+
+let gateway_port =
+  serve
     (O.Gateway.handler service
        (C.Target.forward
           ~targets:
             [
               ("target.example", local target_port "");
-              ("gone.example", local (free_port ()) "");
-            ]));
-  serve local_gateway_port
-    (O.Gateway.handler service (O.Target.of_handler target));
-  serve relay_port
+              ("gone.example", local gone_port "");
+            ]))
+
+let local_gateway_port =
+  serve (O.Gateway.handler service (O.Target.of_handler target))
+
+let relay_port =
+  serve
     (C.Relay.handler
        (Ohttp.Service.Relay.create ())
-       ~gateway:(local gateway_port "/gateway"));
+       ~gateway:(local gateway_port "/gateway"))
+
+let strict_gateway_port =
   (* Room for a short request, one at a time, and a short answer. *)
   let strict =
     Ohttp.Service.Gateway.create ~rng ~max_request_size:256 ~max_in_flight:1
@@ -102,28 +107,27 @@ let () =
     C.Target.forward ~max_response_size:16
       ~targets:[ ("target.example", local target_port "") ]
   in
-  serve strict_gateway_port
+  serve
     (O.Gateway.handler strict (fun (request : Bhttp.Request.t) ->
          if request.path = "/wait" then (
            if Lwt.is_sleeping entered then Lwt.wakeup_later entered_u ();
            let* () = release in
            Lwt.return (Bhttp.Response.make ~status:200 ()))
-         else forward request));
-  serve strict_relay_port
+         else forward request))
+
+let strict_relay_port =
+  serve
     (C.Relay.handler
        (Ohttp.Service.Relay.create ~max_request_size:256 ~max_response_size:16
           ())
        ~gateway:(local gateway_port "/gateway"))
 
-(* The servers start with the first test; give them a moment to listen. *)
-let rec retry n f =
-  Lwt.catch f (fun e ->
-      if n = 0 then Lwt.fail e
-      else
-        let* () = Lwt_unix.sleep 0.05 in
-        retry (n - 1) f)
+let () = Unix.close gone_socket
+let relay = local relay_port "/"
+let strict_relay = local strict_relay_port "/"
 
-let run f = Lwt_main.run (retry 100 f)
+(* Every server listens already, and accepts once the first test runs. *)
+let run f = Lwt_main.run (f ())
 let config = Ohttp.Gateway.Key.config key
 
 let post ?(headers = []) ?(content = "") ?(authority = "target.example")

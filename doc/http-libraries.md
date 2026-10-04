@@ -123,6 +123,16 @@ over TLS.
 opam install ohttp-piaf eio_main
 ```
 
+Piaf 0.2 does not build on Windows. With Homebrew on Apple silicon, it builds
+only once the compiler can find OpenSSL's headers, which its C stubs include
+without asking pkg-config where they are:
+
+```sh
+export C_INCLUDE_PATH="$(brew --prefix openssl@3)/include"
+export LIBRARY_PATH="$(brew --prefix openssl@3)/lib"
+opam install ohttp-piaf eio_main
+```
+
 ```ocaml
 Eio_main.run @@ fun env ->
 Eio.Switch.run @@ fun sw ->

@@ -20,17 +20,6 @@ let () =
         (Unix.error_message e);
       exit 0
 
-let free_port () =
-  let socket = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
-  Unix.bind socket (Unix.ADDR_INET (Unix.inet_addr_loopback, 0));
-  let port =
-    match Unix.getsockname socket with
-    | Unix.ADDR_INET (_, port) -> port
-    | Unix.ADDR_UNIX _ -> assert false
-  in
-  Unix.close socket;
-  port
-
 (* An origin server that knows nothing about any of this. *)
 let target ({ request; _ } : _ Piaf.Server.ctx) =
   let content = Result.get_ok (Piaf.Body.to_string request.body) in
@@ -62,16 +51,40 @@ let () =
   let local port path =
     Uri.of_string (Printf.sprintf "http://127.0.0.1:%d%s" port path)
   in
-  let servers = ref [] in
+  (* Each server listens on a port of the system's choosing, from a socket it
+     holds throughout: a port that is chosen, released, and bound again later
+     can be given to another server in between. *)
   let listen handler =
-    let port = free_port () in
-    let config =
-      Piaf.Server.Config.create (`Tcp (Eio.Net.Ipaddr.V4.loopback, port))
+    let socket =
+      Eio.Net.listen ~sw ~backlog:16 ~reuse_addr:true (Eio.Stdenv.net env)
+        (`Tcp (Eio.Net.Ipaddr.V4.loopback, 0))
     in
-    servers :=
-      Piaf.Server.Command.start ~sw env (Piaf.Server.create ~config handler)
-      :: !servers;
-    port
+    let address = Eio.Net.listening_addr socket in
+    let connection_handler =
+      Piaf.Server.http_connection_handler
+        (Piaf.Server.create ~config:(Piaf.Server.Config.create address) handler)
+    in
+    (* Connections end with the tests, when the daemon is cancelled. *)
+    Eio.Fiber.fork_daemon ~sw (fun () ->
+        Eio.Switch.run @@ fun sw ->
+        let rec accept () =
+          Eio.Net.accept_fork socket ~sw ~on_error:raise (fun flow client ->
+              Eio.Switch.run (fun sw -> connection_handler ~sw flow client));
+          accept ()
+        in
+        accept ());
+    match address with `Tcp (_, port) -> port | `Unix _ -> assert false
+  in
+  (* A port on which nothing listens, so that connections to it are refused. It
+     stays bound until every server has its own port. *)
+  let gone_socket, gone =
+    let socket =
+      Eio.Net.listen ~sw ~backlog:1 (Eio.Stdenv.net env)
+        (`Tcp (Eio.Net.Ipaddr.V4.loopback, 0))
+    in
+    match Eio.Net.listening_addr socket with
+    | `Tcp (_, port) -> (socket, port)
+    | `Unix _ -> assert false
   in
   let service =
     Ohttp.Service.Gateway.create ~rng
@@ -86,7 +99,7 @@ let () =
             ~targets:
               [
                 ("target.example", local target_port "");
-                ("gone.example", local (free_port ()) "");
+                ("gone.example", local gone "");
               ]))
   in
   let relay =
@@ -129,6 +142,7 @@ let () =
             ~gateway:(local gateway "/gateway")))
       "/"
   in
+  Eio.Net.close gone_socket;
   let call ?now ?(relay = relay) ?(config = config) request =
     O.Client.call env ~rng ?now ~relay config request
   in
@@ -277,5 +291,4 @@ let () =
           Alcotest.test_case "response size" `Quick test_response_size;
           Alcotest.test_case "requests in flight" `Quick test_in_flight;
         ] );
-    ];
-  List.iter Piaf.Server.Command.shutdown !servers
+    ]
